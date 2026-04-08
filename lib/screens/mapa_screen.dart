@@ -19,6 +19,7 @@ class MapaScreen extends StatefulWidget {
 class _MapaScreenState extends State<MapaScreen> {
   final MapController _mapController = MapController();
   final LatLng _villavicencio = const LatLng(4.1420, -73.6266);
+  static const double _zoomPuntoSeleccionado = 15;
 
   LatLng? _miUbicacion;
   PuntoCompra? _puntoSeleccionado;
@@ -145,7 +146,36 @@ class _MapaScreenState extends State<MapaScreen> {
 
   void _seleccionarPunto(PuntoCompra punto) {
     setState(() => _puntoSeleccionado = punto);
-    _mapController.move(punto.ubicacion, 15);
+    _mapController.move(punto.ubicacion, _zoomPuntoSeleccionado);
+  }
+
+  int get _indicePuntoSeleccionado {
+    final punto = _puntoSeleccionado;
+    if (punto == null) return -1;
+    return _puntosCompra.indexWhere((item) => item.id == punto.id);
+  }
+
+  void _seleccionarPuntoPorIndice(int indice) {
+    if (indice < 0 || indice >= _puntosCompra.length) return;
+    _seleccionarPunto(_puntosCompra[indice]);
+  }
+
+  void _irAlPuntoAnterior() {
+    if (_puntosCompra.length <= 1) return;
+    final indiceActual = _indicePuntoSeleccionado;
+    final indiceAnterior =
+        indiceActual <= 0 ? _puntosCompra.length - 1 : indiceActual - 1;
+    _seleccionarPuntoPorIndice(indiceAnterior);
+  }
+
+  void _irAlPuntoSiguiente() {
+    if (_puntosCompra.length <= 1) return;
+    final indiceActual = _indicePuntoSeleccionado;
+    final indiceSiguiente =
+        indiceActual == -1 || indiceActual >= _puntosCompra.length - 1
+            ? 0
+            : indiceActual + 1;
+    _seleccionarPuntoPorIndice(indiceSiguiente);
   }
 
   void _irAVillavicencio() {
@@ -270,33 +300,31 @@ class _MapaScreenState extends State<MapaScreen> {
         final seleccionado = _puntoSeleccionado?.id == punto.id;
         return Marker(
           point: punto.ubicacion,
-          width: 92,
-          height: 92,
+          width: seleccionado ? 68 : 56,
+          height: seleccionado ? 68 : 56,
           child: GestureDetector(
             onTap: () => _seleccionarPunto(punto),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _colorPorMaterial(punto).withOpacity(
-                  seleccionado ? 0.96 : 0.85,
-                ),
+                color: _colorPorMaterial(punto).withOpacity(seleccionado ? 0.95 : 0.82),
                 border: Border.all(
                   color: Colors.white,
-                  width: seleccionado ? 3 : 1.5,
+                  width: seleccionado ? 2.5 : 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
                     color: _colorPorMaterial(punto).withOpacity(0.35),
-                    blurRadius: seleccionado ? 18 : 10,
-                    spreadRadius: seleccionado ? 2 : 0,
+                    blurRadius: seleccionado ? 14 : 8,
+                    spreadRadius: seleccionado ? 1 : 0,
                   ),
                 ],
               ),
               child: Icon(
                 _iconoPorMaterial(punto),
                 color: Colors.white,
-                size: seleccionado ? 34 : 28,
+                size: seleccionado ? 26 : 21,
               ),
             ),
           ),
@@ -305,23 +333,23 @@ class _MapaScreenState extends State<MapaScreen> {
       if (_miUbicacion != null)
         Marker(
           point: _miUbicacion!,
-          width: 88,
-          height: 88,
+          width: 54,
+          height: 54,
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF1565C0).withOpacity(0.92),
-              border: Border.all(color: Colors.white, width: 3),
+              border: Border.all(color: Colors.white, width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF1565C0).withOpacity(0.35),
-                  blurRadius: 16,
+                  blurRadius: 12,
                 ),
               ],
             ),
             child: const Icon(
               Icons.my_location,
-              size: 30,
+              size: 22,
               color: Colors.white,
             ),
           ),
@@ -470,7 +498,7 @@ class _MapaScreenState extends State<MapaScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       decoration: BoxDecoration(
         color: const Color(0xEE10281D),
         borderRadius: BorderRadius.circular(22),
@@ -488,15 +516,20 @@ class _MapaScreenState extends State<MapaScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: _colorPorMaterial(punto).withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(_iconoPorMaterial(punto), color: _colorPorMaterial(punto)),
+                child: Icon(
+                  _iconoPorMaterial(punto),
+                  color: _colorPorMaterial(punto),
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -507,49 +540,64 @@ class _MapaScreenState extends State<MapaScreen> {
                       punto.nombre,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       punto.direccion,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12.5),
                     ),
                   ],
                 ),
               ),
+              if (_puntosCompra.length > 1) ...[
+                const SizedBox(width: 8),
+                _buildNavegacionPuntos(),
+              ],
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          if (_puntosCompra.length > 1) ...[
+            Text(
+              '${_indicePuntoSeleccionado + 1} de ${_puntosCompra.length}',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           _buildDetalle(icono: Icons.location_on_outlined, texto: punto.barrio),
           if (punto.referencia.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _buildDetalle(icono: Icons.place_outlined, texto: punto.referencia),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildDetalle(icono: Icons.schedule_rounded, texto: punto.horario),
           if (punto.telefono.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _buildDetalle(icono: Icons.phone_outlined, texto: punto.telefono),
           ],
           if (punto.descripcion.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _buildDetalle(
               icono: Icons.info_outline_rounded,
               texto: punto.descripcion,
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           const Text(
             'Materiales que compran',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -557,8 +605,8 @@ class _MapaScreenState extends State<MapaScreen> {
                 .map(
                   (material) => Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 11,
+                      vertical: 7,
                     ),
                     decoration: BoxDecoration(
                       color: _colorPorMaterial(punto).withOpacity(0.16),
@@ -571,6 +619,7 @@ class _MapaScreenState extends State<MapaScreen> {
                       material,
                       style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -583,16 +632,59 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
+  Widget _buildNavegacionPuntos() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildBotonFlecha(
+          icono: Icons.chevron_left_rounded,
+          onTap: _irAlPuntoAnterior,
+        ),
+        const SizedBox(width: 6),
+        _buildBotonFlecha(
+          icono: Icons.chevron_right_rounded,
+          onTap: _irAlPuntoSiguiente,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBotonFlecha({
+    required IconData icono,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Icon(icono, color: Colors.white70, size: 22),
+      ),
+    );
+  }
+
   Widget _buildDetalle({required IconData icono, required String texto}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icono, color: Colors.white70, size: 18),
-        const SizedBox(width: 10),
+        Icon(icono, color: Colors.white70, size: 17),
+        const SizedBox(width: 9),
         Expanded(
           child: Text(
             texto,
-            style: const TextStyle(color: Colors.white70, height: 1.35),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              height: 1.3,
+            ),
           ),
         ),
       ],
