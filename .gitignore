@@ -105,3 +105,8 @@ node_modules/
 # Otros
 venv/
 .env.local
+
+# Generated files - Flutter
+linux/flutter/generated_*
+macos/Flutter/GeneratedPluginRegistrant.swift
+windows/flutter/generated_*
