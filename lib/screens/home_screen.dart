@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../config/api_config.dart';
+import 'importancia_reciclaje_screen.dart';
+import 'login_screen.dart';
 import 'mapa_screen.dart';
+import 'tutorial_reciclaje_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String nombreUsuario;
@@ -69,6 +72,40 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   String get _iaBaseUrl => ApiConfig.iaBaseUrl;
+
+  Future<void> _cerrarSesion() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF163525),
+        title: const Text(
+          'Cerrar sesión',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          '¿Seguro que deseas cerrar sesión?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   Future<void> _abrirCamara() async {
     setState(() => _capturando = true);
@@ -414,71 +451,177 @@ class _HomeScreenState extends State<HomeScreen>
   //  HEADER
   // ══════════════════════════════════════════
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Hola, ${widget.nombreUsuario} 👋',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hola, ${widget.nombreUsuario} 👋',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '¿Qué vas a reciclar hoy?',
+                    style: TextStyle(color: Colors.white54, fontSize: 14),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              '¿Qué vas a reciclar hoy?',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            // 🌍 BOTÓN MAPA
-            Tooltip(
-              message: 'Ver puntos de reciclaje',
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MapaScreen()),
-                  );
-                },
-                child: Container(
+
+            const SizedBox(width: 12),
+
+            Row(
+              children: [
+                // 🌍 BOTÓN MAPA
+                Tooltip(
+                  message: 'Ver puntos de reciclaje',
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MapaScreen()),
+                      );
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: const Icon(
+                        Icons.map_rounded,
+                        color: Color(0xFF66BB6A),
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                ),
+
+                Tooltip(
+                  message: 'Cerrar sesión',
+                  child: GestureDetector(
+                    onTap: _cerrarSesion,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: const Icon(
+                        Icons.logout_rounded,
+                        color: Color(0xFFFFB74D),
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 🌱 ICONO ECO
+                Container(
                   width: 48,
                   height: 48,
-                  margin: const EdgeInsets.only(right: 10),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white12),
                   ),
                   child: const Icon(
-                    Icons.map_rounded,
+                    Icons.eco,
                     color: Color(0xFF66BB6A),
                     size: 26,
                   ),
                 ),
-              ),
-            ),
-
-            // 🌱 ICONO ECO
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: const Icon(Icons.eco, color: Color(0xFF66BB6A), size: 26),
+              ],
             ),
           ],
         ),
+
+        const SizedBox(height: 14),
+        _buildPestanasEducativas(),
       ],
+    );
+  }
+
+  Widget _buildPestanasEducativas() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildPestanaModulo(
+            icon: Icons.public_rounded,
+            titulo: 'Importancia',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ImportanciaReciclajeScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          _buildPestanaModulo(
+            icon: Icons.menu_book_rounded,
+            titulo: 'Tutorial',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TutorialReciclajeScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPestanaModulo({
+    required IconData icon,
+    required String titulo,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF81C784), size: 18),
+            const SizedBox(width: 7),
+            Text(
+              titulo,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
