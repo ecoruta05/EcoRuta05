@@ -4,14 +4,15 @@ pydantic==2.5.0
 python-multipart==0.0.6
 
 pillow>=10.0.0
-
-torch
-torchvision
-opencv-python==4.8.1.78
 numpy==1.24.3
 python-dotenv==1.0.0
 loguru==0.7.2
 aiofiles==23.2.1
+
+opencv-python-headless==4.8.1.78
+
+# torch
+# torchvision
 
 setuptools
 wheel
