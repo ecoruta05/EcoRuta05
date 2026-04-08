@@ -385,8 +385,6 @@ class _MapaScreenState extends State<MapaScreen> {
                 _buildEstadoUbicacion(),
                 if (_buildEstadoUbicacion() is! SizedBox) const SizedBox(height: 12),
                 _buildEstadoPuntos(),
-                const SizedBox(height: 12),
-                _buildResumenPuntos(puntosVisibles.length),
               ],
             ),
           ),
@@ -630,32 +628,6 @@ class _MapaScreenState extends State<MapaScreen> {
     }
 
     return const SizedBox.shrink();
-  }
-
-  Widget _buildResumenPuntos(int cantidadVisible) {
-    final mostrandoFiltro = _busqueda.trim().isNotEmpty;
-    final texto = mostrandoFiltro
-        ? '$cantidadVisible resultados de ${_puntosCompra.length} puntos'
-        : '$cantidadVisible puntos de compra cargados para Villavicencio';
-
-    return _InfoCard(
-      color: const Color(0xCC163525),
-      child: Row(
-        children: [
-          const Icon(Icons.storefront_rounded, color: Color(0xFF81C784)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              texto,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildPanelArrastrable() {
