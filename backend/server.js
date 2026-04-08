@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import { conectarDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
+import puntoCompraRoutes from "./routes/puntoCompra.routes.js";
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/puntos-compra", puntoCompraRoutes);
 
 app.get("/", (req, res) => {
   res.send("Servidor funcionando 🚀");

@@ -5,14 +5,12 @@ export const registro = async (req, res) => {
   try {
     let { nombre, apellido, correo, telefono, password } = req.body;
 
-    // 🔥 NORMALIZACIÓN
     nombre = nombre?.trim() || "";
     apellido = apellido?.trim() || "";
     correo = correo?.toLowerCase().trim() || "";
     telefono = telefono?.trim() || "";
     password = password || "";
 
-    // 🔥 VALIDACIONES
     if (!nombre || !apellido || !correo || !telefono || !password) {
       return res.status(400).json({
         mensaje: "Todos los campos son obligatorios"
@@ -22,13 +20,13 @@ export const registro = async (req, res) => {
     const regexCorreo = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
     if (!regexCorreo.test(correo)) {
       return res.status(400).json({
-        mensaje: "El correo debe ser @gmail.com válido"
+        mensaje: "El correo debe ser @gmail.com valido"
       });
     }
 
     if (!/^\d{10}$/.test(telefono)) {
       return res.status(400).json({
-        mensaje: "El teléfono debe tener exactamente 10 dígitos"
+        mensaje: "El telefono debe tener exactamente 10 digitos"
       });
     }
 
@@ -38,26 +36,26 @@ export const registro = async (req, res) => {
       !/[a-zA-Z]/.test(password)
     ) {
       return res.status(400).json({
-        mensaje: "La contraseña debe tener mínimo 6 caracteres, una letra y un número"
+        mensaje: "La contrasena debe tener minimo 6 caracteres, una letra y un numero"
       });
     }
 
-    // 🔥 VERIFICAR EXISTENTE
     const existe = await Usuario.findOne({ correo });
 
     if (existe) {
       return res.status(400).json({
-        mensaje: "El correo ya está registrado"
+        mensaje: "El correo ya esta registrado"
       });
     }
 
-    // 🔥 HASH PASSWORD
     const hash = await bcrypt.hash(password, 10);
+    const nombreCompleto = `${nombre} ${apellido}`.trim();
 
-    // 🔥 GUARDAR
     const nuevoUsuario = new Usuario({
-      nombre,
+      nombre: nombreCompleto,
+      apellido,
       correo,
+      telefono,
       password: hash
     });
 
@@ -66,7 +64,6 @@ export const registro = async (req, res) => {
     return res.status(200).json({
       mensaje: "Usuario registrado correctamente"
     });
-
   } catch (error) {
     console.error("Error en registro:", error);
 
@@ -75,7 +72,6 @@ export const registro = async (req, res) => {
     });
   }
 };
-
 
 export const checkEmail = async (req, res) => {
   try {
@@ -86,7 +82,6 @@ export const checkEmail = async (req, res) => {
     res.json({
       existe: user ? true : false
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({
