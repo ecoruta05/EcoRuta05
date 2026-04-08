@@ -188,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen>
       await _cargarMaterialesPuntaje();
     }
 
-    final materiales = [
+    final materiales = <Map<String, dynamic>>[
       {
         'nombre': _materialesDisponibles.isNotEmpty
             ? _materialesDisponibles.first['material']?.toString() ?? ''
@@ -212,10 +212,18 @@ class _HomeScreenState extends State<HomeScreen>
               final materialesPayload = materiales
                   .map((item) => ({
                         'nombre': item['nombre']?.toString() ?? '',
-                        'kilos':
-                            double.parse(item['kilos']!.text.trim().replaceAll(',', '.')),
-                        'valorGanado':
-                            double.parse(item['valor']!.text.trim().replaceAll(',', '.')),
+                        'kilos': double.parse(
+                          (item['kilos'] as TextEditingController)
+                              .text
+                              .trim()
+                              .replaceAll(',', '.'),
+                        ),
+                        'valorGanado': double.parse(
+                          (item['valor'] as TextEditingController)
+                              .text
+                              .trim()
+                              .replaceAll(',', '.'),
+                        ),
                       }))
                   .toList();
 
@@ -347,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                               const SizedBox(height: 10),
                               TextFormField(
-                                controller: item['kilos'],
+                                controller:
+                                    item['kilos'] as TextEditingController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 style: const TextStyle(color: Colors.white),
                                 decoration: _inputDecoration('Kilos'),
@@ -361,7 +370,8 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                               const SizedBox(height: 10),
                               TextFormField(
-                                controller: item['valor'],
+                                controller:
+                                    item['valor'] as TextEditingController,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 style: const TextStyle(color: Colors.white),
                                 decoration: _inputDecoration('Dinero ganado'),
