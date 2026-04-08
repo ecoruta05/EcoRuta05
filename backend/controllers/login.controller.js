@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import ResumenReciclaje from "../models/resumenReciclaje.js";
 import Usuario from "../models/user.js";
 
 export const login = async (req, res) => {
@@ -24,12 +25,22 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    const resumen = await ResumenReciclaje.findOne({
+      usuarioId: user._id
+    }).lean();
+
     res.json({
       mensaje: "Login exitoso",
       token,
       usuario: {
+        id: user._id,
         nombre: user.nombre,
-        correo: user.correo
+        correo: user.correo,
+        resumenReciclaje: {
+          kilosTotales: resumen?.kilosTotales ?? 0,
+          dineroGanado: resumen?.dineroGanadoTotal ?? 0,
+          puntosEco: resumen?.puntosEcoTotales ?? 0
+        }
       }
     });
 
@@ -38,6 +49,7 @@ export const login = async (req, res) => {
     res.status(500).json({ mensaje: "Error en login" });
   }
 };
+<<<<<<< HEAD
 
 export const cambiarPassword = async (req, res) => {
   try {
@@ -97,3 +109,5 @@ export const cambiarPassword = async (req, res) => {
     });
   }
 };
+=======
+>>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6

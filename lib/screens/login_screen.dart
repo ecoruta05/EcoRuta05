@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
+import '../models/reciclaje_resumen.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
 
@@ -45,12 +46,27 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
 
         if (response.statusCode == 200) {
+          final usuario = Map<String, dynamic>.from(
+            data["usuario"] as Map? ?? const <String, dynamic>{},
+          );
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => HomeScreen(
+<<<<<<< HEAD
                 nombreUsuario: data["usuario"]["nombre"],
                 token: data["token"],
+=======
+                nombreUsuario: usuario["nombre"]?.toString() ?? '',
+                authToken: data["token"]?.toString() ?? '',
+                userId: usuario["id"]?.toString() ?? '',
+                resumenInicial: ReciclajeResumen.fromJson(
+                  Map<String, dynamic>.from(
+                    usuario["resumenReciclaje"] as Map? ??
+                        const <String, dynamic>{},
+                  ),
+                ),
+>>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
               ),
             ),
           );

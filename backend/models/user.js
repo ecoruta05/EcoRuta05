@@ -35,6 +35,9 @@ const usuarioSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  versionKey: false,
+  collection: "usuarios"
 });
 
 export default mongoose.model("Usuario", usuarioSchema);

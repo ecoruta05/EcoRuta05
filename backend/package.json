@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "seed:puntos-compra": "node scripts/seed-puntos-compra.js"
+    "seed:materiales-puntaje": "node scripts/seed-materiales-puntaje.js",
+    "seed:puntos-compra": "node scripts/seed-puntos-compra.js",
+    "qr:puntos-compra": "node scripts/generar-qr-puntos.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -13,6 +15,7 @@
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.4.1"
+    "mongoose": "^9.4.1",
+    "qrcode": "^1.5.4"
   }
 }

@@ -4,7 +4,9 @@ import dotenv from "dotenv";
 
 import { conectarDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
+import materialPuntajeRoutes from "./routes/materialPuntaje.routes.js";
 import puntoCompraRoutes from "./routes/puntoCompra.routes.js";
+import ventaReciclajeRoutes from "./routes/ventaReciclaje.routes.js";
 
 dotenv.config();
 
@@ -14,7 +16,9 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/materiales-puntaje", materialPuntajeRoutes);
 app.use("/api/puntos-compra", puntoCompraRoutes);
+app.use("/api/ventas-reciclaje", ventaReciclajeRoutes);
 
 app.get("/", (req, res) => {
   res.send("Servidor funcionando 🚀");
