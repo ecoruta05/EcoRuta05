@@ -4,18 +4,18 @@ pydantic==2.5.0
 python-multipart==0.0.6
 
 pillow>=10.0.0
-numpy>=1.26.0
+numpy==1.26.4
 python-dotenv==1.0.0
 loguru==0.7.2
 aiofiles==23.2.1
 
 opencv-python-headless==4.8.1.78
 
-# 🔥 TORCH CPU (CLAVE)
+#TORCH CPU (CLAVE)
 torch==2.2.2+cpu
 torchvision==0.17.2+cpu
 
-# 🔥 NECESARIO PARA TORCH
+#NECESARIO PARA TORCH
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 setuptools
