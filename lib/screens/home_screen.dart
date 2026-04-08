@@ -1,19 +1,32 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+
 import '../config/api_config.dart';
+import '../models/reciclaje_resumen.dart';
 import 'importancia_reciclaje_screen.dart';
 import 'login_screen.dart';
 import 'mapa_screen.dart';
+import 'qr_venta_screen.dart';
 import 'tutorial_reciclaje_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String nombreUsuario;
+  const HomeScreen({
+    super.key,
+    required this.nombreUsuario,
+    required this.authToken,
+    required this.userId,
+    required this.resumenInicial,
+  });
 
-  const HomeScreen({super.key, required this.nombreUsuario});
+  final String nombreUsuario;
+  final String authToken;
+  final String userId;
+  final ReciclajeResumen resumenInicial;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -24,45 +37,27 @@ class _HomeScreenState extends State<HomeScreen>
   File? _fotoCapturada;
   bool _capturando = false;
   bool _analizando = false;
+  bool _cargandoResumen = false;
   Map<String, dynamic>? _ultimoResultado;
+  ReciclajeResumen _resumen = const ReciclajeResumen.vacio();
+  List<Map<String, dynamic>> _ventasRecientes = const [];
+  List<Map<String, dynamic>> _materialesDisponibles = const [];
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // Estadísticas de ejemplo (luego vendrán del backend)
-  final int _objetosReciclados = 14;
-  final Map<String, int> _materialesPorTipo = {
-    'Plástico': 6,
-    'Papel': 4,
-    'Vidrio': 2,
-    'Metal': 2,
-  };
-
-  final Map<String, IconData> _iconosMaterial = {
-    'Plástico': Icons.water_drop_outlined,
-    'Papel': Icons.article_outlined,
-    'Vidrio': Icons.wine_bar_outlined,
-    'Metal': Icons.hardware_outlined,
-  };
-
-  final Map<String, Color> _coloresMaterial = {
-    'Plástico': const Color(0xFF4FC3F7),
-    'Papel': const Color(0xFFA5D6A7),
-    'Vidrio': const Color(0xFF80CBC4),
-    'Metal': const Color(0xFFFFCC80),
-  };
-
   @override
   void initState() {
     super.initState();
+    _resumen = widget.resumenInicial;
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
+    _pulseAnimation = Tween<double>(begin: 1, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    _cargarDatosIniciales();
   }
 
   @override
@@ -107,31 +102,388 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Future<void> _abrirCamara() async {
-    setState(() => _capturando = true);
+  Future<void> _cargarDatosIniciales() async {
+    await Future.wait([
+      _cargarResumenReciclaje(),
+      _cargarMaterialesPuntaje(),
+    ]);
+  }
+
+  Future<void> _cargarResumenReciclaje() async {
+    if (widget.authToken.isEmpty) return;
+    setState(() => _cargandoResumen = true);
 
     try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.authBaseUrl}/api/ventas-reciclaje/resumen'),
+        headers: {'Authorization': 'Bearer ${widget.authToken}'},
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Error cargando resumen');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (!mounted) return;
+
+      setState(() {
+        _resumen = ReciclajeResumen.fromJson(
+          Map<String, dynamic>.from(
+            data['resumen'] as Map? ?? const <String, dynamic>{},
+          ),
+        );
+        _ventasRecientes = (data['ventas'] as List? ?? const [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cargar el resumen.')),
+      );
+    } finally {
+      if (mounted) setState(() => _cargandoResumen = false);
+    }
+  }
+
+  Future<void> _cargarMaterialesPuntaje() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.authBaseUrl}/api/materiales-puntaje'),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Error cargando materiales');
+      }
+
+      final data = jsonDecode(response.body) as List<dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _materialesDisponibles = data
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cargar la lista de materiales.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _escanearQrVenta() async {
+    final qrContenido = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const QrVentaScreen()),
+    );
+
+    if (!mounted || qrContenido == null || qrContenido.trim().isEmpty) return;
+    await _mostrarFormularioVenta(qrContenido);
+  }
+
+  Future<void> _mostrarFormularioVenta(String qrContenido) async {
+    final formKey = GlobalKey<FormState>();
+    bool guardando = false;
+    if (_materialesDisponibles.isEmpty) {
+      await _cargarMaterialesPuntaje();
+    }
+
+    final materiales = [
+      {
+        'nombre': _materialesDisponibles.isNotEmpty
+            ? _materialesDisponibles.first['material']?.toString() ?? ''
+            : '',
+        'kilos': TextEditingController(),
+        'valor': TextEditingController(),
+      }
+    ];
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          Future<void> registrar() async {
+            if (!formKey.currentState!.validate()) return;
+            setModalState(() => guardando = true);
+
+            try {
+              final materialesPayload = materiales
+                  .map((item) => ({
+                        'nombre': item['nombre']?.toString() ?? '',
+                        'kilos':
+                            double.parse(item['kilos']!.text.trim().replaceAll(',', '.')),
+                        'valorGanado':
+                            double.parse(item['valor']!.text.trim().replaceAll(',', '.')),
+                      }))
+                  .toList();
+
+              final response = await http.post(
+                Uri.parse('${ApiConfig.authBaseUrl}/api/ventas-reciclaje/registrar'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ${widget.authToken}',
+                },
+                body: jsonEncode({
+                  'qrContenido': qrContenido,
+                  'materiales': materialesPayload,
+                }),
+              );
+
+              final data = jsonDecode(response.body) as Map<String, dynamic>;
+              if (response.statusCode != 201) {
+                throw Exception(data['mensaje'] ?? 'No se pudo guardar');
+              }
+
+              if (!mounted) return;
+              setState(() {
+                _resumen = ReciclajeResumen.fromJson(
+                  Map<String, dynamic>.from(
+                    data['resumen'] as Map? ?? const <String, dynamic>{},
+                  ),
+                );
+                _ventasRecientes = [
+                  Map<String, dynamic>.from(
+                    data['venta'] as Map? ?? const <String, dynamic>{},
+                  ),
+                  ..._ventasRecientes,
+                ].take(10).toList();
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(
+                  content: Text('Venta registrada correctamente.'),
+                  backgroundColor: Color(0xFF2E7D32),
+                ),
+              );
+            } catch (error) {
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(content: Text('No se pudo registrar la venta: $error')),
+              );
+            } finally {
+              if (context.mounted) setModalState(() => guardando = false);
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF163525),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Registrar venta por QR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Materiales entregados',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ...List.generate(materiales.length, (index) {
+                      final item = materiales[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Column(
+                            children: [
+                              DropdownButtonFormField<String>(
+                                value: (item['nombre']?.toString().isNotEmpty ?? false)
+                                    ? item['nombre'] as String
+                                    : null,
+                                dropdownColor: const Color(0xFF163525),
+                                style: const TextStyle(color: Colors.white),
+                                decoration: _inputDecoration('Material ${index + 1}'),
+                                items: _materialesDisponibles
+                                    .map(
+                                      (material) => DropdownMenuItem<String>(
+                                        value: material['material']?.toString() ?? '',
+                                        child: Text(
+                                          '${material['material']} (${material['puntosPorKilo']} pts/kg)',
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  setModalState(() {
+                                    item['nombre'] = value ?? '';
+                                  });
+                                },
+                                validator: (value) {
+                                  if ((value ?? '').trim().isEmpty) {
+                                    return 'Selecciona el material';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: item['kilos'],
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                style: const TextStyle(color: Colors.white),
+                                decoration: _inputDecoration('Kilos'),
+                                validator: (value) {
+                                  final n =
+                                      double.tryParse((value ?? '').replaceAll(',', '.'));
+                                  return (n == null || n <= 0)
+                                      ? 'Ingresa kilos validos'
+                                      : null;
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              TextFormField(
+                                controller: item['valor'],
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                style: const TextStyle(color: Colors.white),
+                                decoration: _inputDecoration('Dinero ganado'),
+                                validator: (value) {
+                                  final n =
+                                      double.tryParse((value ?? '').replaceAll(',', '.'));
+                                  return (n == null || n < 0)
+                                      ? 'Ingresa un valor valido'
+                                      : null;
+                                },
+                              ),
+                              if (materiales.length > 1) ...[
+                                const SizedBox(height: 10),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton.icon(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        final eliminado = materiales.removeAt(index);
+                                        eliminado.entries.forEach((entry) {
+                                          if (entry.value is TextEditingController) {
+                                            (entry.value as TextEditingController).dispose();
+                                          }
+                                        });
+                                      });
+                                    },
+                                    icon: const Icon(Icons.delete_outline, color: Colors.white70),
+                                    label: const Text(
+                                      'Quitar',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    TextButton.icon(
+                      onPressed: () {
+                        setModalState(() {
+                          materiales.add({
+                            'nombre': _materialesDisponibles.isNotEmpty
+                                ? _materialesDisponibles.first['material']?.toString() ?? ''
+                                : '',
+                            'kilos': TextEditingController(),
+                            'valor': TextEditingController(),
+                          });
+                        });
+                      },
+                      icon: const Icon(Icons.add_circle_outline, color: Color(0xFF9BE7A1)),
+                      label: const Text(
+                        'Agregar otro material',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: guardando ? null : registrar,
+                        icon: guardando
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.qr_code_scanner_rounded),
+                        label: Text(guardando ? 'Guardando...' : 'Guardar venta'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF43A047),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    for (final item in materiales) {
+      item.entries.forEach((entry) {
+        if (entry.value is TextEditingController) {
+          (entry.value as TextEditingController).dispose();
+        }
+      });
+    }
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.08),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  Future<void> _abrirCamara() async {
+    setState(() => _capturando = true);
+    try {
       final picker = ImagePicker();
-      final XFile? foto = await picker.pickImage(
+      final foto = await picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
         imageQuality: 85,
       );
-
       if (foto != null) {
-        setState(() {
-          _fotoCapturada = File(foto.path);
-        });
+        setState(() => _fotoCapturada = File(foto.path));
         _mostrarFotoCapturada();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo acceder a la cámara'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
       }
     } finally {
       if (mounted) setState(() => _capturando = false);
@@ -145,25 +497,15 @@ class _HomeScreenState extends State<HomeScreen>
     Navigator.pop(context);
     setState(() => _analizando = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enviando imagen a la IA...'),
-        backgroundColor: Color(0xFF2E7D32),
-      ),
-    );
-
     try {
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$_iaBaseUrl/clasificar/imagen'),
       );
-
       request.files.add(await http.MultipartFile.fromPath('file', foto.path));
 
-      final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 20),
-      );
-      final response = await http.Response.fromStream(streamedResponse);
+      final streamed = await request.send().timeout(const Duration(seconds: 20));
+      final response = await http.Response.fromStream(streamed);
       final data = response.body.isNotEmpty
           ? jsonDecode(response.body) as Map<String, dynamic>
           : <String, dynamic>{};
@@ -172,122 +514,20 @@ class _HomeScreenState extends State<HomeScreen>
         throw Exception(data['detail'] ?? 'No se pudo analizar la imagen');
       }
 
-      final resultado = Map<String, dynamic>.from(
-        (data['resultado'] as Map?) ?? const <String, dynamic>{},
-      );
-
       if (!mounted) return;
-
       setState(() {
-        _ultimoResultado = resultado;
+        _ultimoResultado = Map<String, dynamic>.from(
+          (data['resultado'] as Map?) ?? const <String, dynamic>{},
+        );
       });
-
-      _mostrarResultadoAnalisis(resultado);
-    } on SocketException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No se pudo conectar con la IA en $_iaBaseUrl. Verifica que el servicio esté encendido y que el celular y tu PC estén en la misma red.',
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } on TimeoutException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'La IA tardó demasiado en responder. Revisa que el servidor esté activo e inténtalo de nuevo.',
-          ),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo analizar la imagen: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text('No se pudo analizar la imagen: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _analizando = false);
-      }
+      if (mounted) setState(() => _analizando = false);
     }
-  }
-
-  void _mostrarResultadoAnalisis(Map<String, dynamic> resultado) {
-    final objeto = resultado['objeto_detectado']?.toString() ?? 'Objeto';
-    final categoria = resultado['categoria']?.toString() ?? 'sin categoría';
-    final accion = resultado['accion']?.toString() ?? 'sin acción';
-    final instrucciones =
-        resultado['instrucciones']?.toString() ?? 'Sin instrucciones';
-    final confianza = ((resultado['confianza'] ?? 0) as num).toDouble();
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF163525),
-        title: const Text(
-          'Resultado del análisis',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildResultadoLinea('Objeto', objeto),
-            _buildResultadoLinea('Categoría', categoria),
-            _buildResultadoLinea('Acción', accion),
-            _buildResultadoLinea(
-              'Confianza',
-              '${(confianza * 100).toStringAsFixed(1)}%',
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Instrucciones',
-              style: TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(instrucciones, style: const TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResultadoLinea(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _mostrarFotoCapturada() {
@@ -295,8 +535,8 @@ class _HomeScreenState extends State<HomeScreen>
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => Container(
         height: MediaQuery.of(context).size.height * 0.75,
         decoration: const BoxDecoration(
@@ -316,17 +556,12 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(height: 20),
             const Text(
-              '¡Foto capturada!',
+              'Foto capturada',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Lista para analizar',
-              style: TextStyle(color: Colors.white54, fontSize: 14),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -334,68 +569,33 @@ class _HomeScreenState extends State<HomeScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.file(
-                    _fotoCapturada!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  ),
+                  child: Image.file(_fotoCapturada!, fit: BoxFit.cover),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: OutlinedButton(
                       onPressed: () {
                         Navigator.pop(context);
                         setState(() => _fotoCapturada = null);
                       },
-                      icon: const Icon(Icons.refresh, color: Colors.white70),
-                      label: const Text(
-                        'Reintentar',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white30),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                      child: const Text('Reintentar'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: ElevatedButton(
                       onPressed: _analizando ? null : _analizarImagen,
-                      icon: _analizando
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                      label: Text(_analizando ? 'Analizando...' : 'Analizar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF43A047),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                      child: Text(_analizando ? 'Analizando...' : 'Analizar'),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -415,30 +615,25 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── HEADER ────────────────────────────────────────
                 _buildHeader(),
-
-                const SizedBox(height: 32),
-
-                // ─── BOTÓN ESCANEAR ─────────────────────────────────
-                _buildBotonEscanear(),
-
-                const SizedBox(height: 32),
-
-                // ─── ESTADÍSTICAS ───────────────────────────────────
-                _buildSeccionEstadisticas(),
-
+                const SizedBox(height: 28),
+                _buildBotonEscanearResiduo(),
+                const SizedBox(height: 14),
+                _buildCardRegistrarVenta(),
+                const SizedBox(height: 28),
+                _buildResumenVentas(),
+                if (_ventasRecientes.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildVentasRecientes(),
+                ],
                 if (_ultimoResultado != null) ...[
                   const SizedBox(height: 24),
                   _buildUltimoResultado(),
                 ],
-
-                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -447,9 +642,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ══════════════════════════════════════════
-  //  HEADER
-  // ══════════════════════════════════════════
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,62 +669,50 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-
             const SizedBox(width: 12),
-
             Row(
               children: [
-                // 🌍 BOTÓN MAPA
-                Tooltip(
-                  message: 'Ver puntos de reciclaje',
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MapaScreen()),
-                      );
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(
-                        Icons.map_rounded,
-                        color: Color(0xFF66BB6A),
-                        size: 26,
-                      ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MapaScreen()),
+                    );
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Icon(
+                      Icons.map_rounded,
+                      color: Color(0xFF66BB6A),
+                      size: 26,
                     ),
                   ),
                 ),
-
-                Tooltip(
-                  message: 'Cerrar sesión',
-                  child: GestureDetector(
-                    onTap: _cerrarSesion,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(
-                        Icons.logout_rounded,
-                        color: Color(0xFFFFB74D),
-                        size: 24,
-                      ),
+                GestureDetector(
+                  onTap: _cerrarSesion,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Icon(
+                      Icons.logout_rounded,
+                      color: Color(0xFFFFB74D),
+                      size: 24,
                     ),
                   ),
                 ),
-
-                // 🌱 ICONO ECO
                 Container(
                   width: 48,
                   height: 48,
@@ -551,7 +731,6 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ],
         ),
-
         const SizedBox(height: 14),
         _buildPestanasEducativas(),
       ],
@@ -625,134 +804,303 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ══════════════════════════════════════════
-  //  BOTÓN ESCANEAR
-  // ══════════════════════════════════════════
-  Widget _buildBotonEscanear() {
+  Widget _buildBotonEscanearResiduo() {
     return Center(
-      child: Column(
-        children: [
-          ScaleTransition(
-            scale: _pulseAnimation,
-            child: GestureDetector(
-              onTap: _capturando ? null : _abrirCamara,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFF43A047), Color(0xFF2E7D32)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF43A047).withOpacity(0.45),
-                      blurRadius: 36,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: _capturando
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 3,
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            Icons.document_scanner_rounded,
-                            color: Colors.white,
-                            size: 64,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Escanear\nResiduo',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
+      child: ScaleTransition(
+        scale: _pulseAnimation,
+        child: GestureDetector(
+          onTap: _capturando ? null : _abrirCamara,
+          child: Container(
+            width: 170,
+            height: 170,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [Color(0xFF43A047), Color(0xFF2E7D32)],
               ),
             ),
+            child: _capturando
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.document_scanner_rounded,
+                        color: Colors.white,
+                        size: 58,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Escanear\nResiduo',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          const SizedBox(height: 14),
-          const Text(
-            'Toca para abrir la cámara',
-            style: TextStyle(color: Colors.white38, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardRegistrarVenta() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: const Color(0xFF43A047).withOpacity(0.16),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.qr_code_scanner_rounded,
+              color: Color(0xFF9BE7A1),
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Registrar venta',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Escanea el QR del comprador y registra materiales, kilos y dinero ganado.',
+                  style: TextStyle(color: Colors.white70, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: _escanearQrVenta,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Escanear'),
           ),
         ],
       ),
     );
   }
 
-  // ══════════════════════════════════════════
-  //  SECCIÓN ESTADÍSTICAS
-  // ══════════════════════════════════════════
-  Widget _buildSeccionEstadisticas() {
+  Widget _buildResumenVentas() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Mi resumen',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (_cargandoResumen)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white70,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _buildTarjetaPrincipal(),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMiniTarjeta(
+                'Kilos',
+                _resumen.kilosTotales.toStringAsFixed(1),
+                Icons.scale_outlined,
+                const Color(0xFF1565C0),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMiniTarjeta(
+                'Puntos',
+                '${_resumen.puntosEco}',
+                Icons.stars_rounded,
+                const Color(0xFFFFB300),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: const Text(
+            'Tus puntos se podran redimir por convenios. Cada kilo registrado suma puntos automaticamente.',
+            style: TextStyle(color: Colors.white70, height: 1.4),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTarjetaPrincipal() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2E7D32), Color(0xFF388E3C)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.savings_outlined, color: Colors.white, size: 30),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '\$ ${_resumen.dineroGanado.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Dinero ganado',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniTarjeta(
+    String titulo,
+    String valor,
+    IconData icono,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icono, color: color, size: 24),
+          const SizedBox(height: 10),
+          Text(
+            valor,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(titulo, style: const TextStyle(color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVentasRecientes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Mis estadísticas',
+          'Ultimas ventas',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-
-        const SizedBox(height: 16),
-
-        // Tarjeta total reciclados
-        _buildTarjetaTotal(),
-
-        const SizedBox(height: 16),
-
-        // Materiales
-        const Text(
-          'Por tipo de material',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-
         const SizedBox(height: 12),
+        ..._ventasRecientes.take(3).map((venta) {
+          final kilos = (venta['kilos'] as num?)?.toDouble() ?? 0;
+          final dinero = (venta['valorGanado'] as num?)?.toDouble() ?? 0;
+          final puntos = (venta['puntosGanados'] as num?)?.toInt() ?? 0;
+          final nombre = venta['puntoCompraNombre']?.toString() ?? 'Punto';
 
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: _materialesPorTipo.entries.map((entry) {
-            return _buildTarjetaMaterial(
-              entry.key,
-              entry.value,
-              _iconosMaterial[entry.key]!,
-              _coloresMaterial[entry.key]!,
-            );
-          }).toList(),
-        ),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Text(
+              '$nombre\n${kilos.toStringAsFixed(1)} kg | \$ ${dinero.toStringAsFixed(0)} | +$puntos puntos',
+              style: const TextStyle(color: Colors.white70, height: 1.4),
+            ),
+          );
+        }),
       ],
     );
   }
 
   Widget _buildUltimoResultado() {
     final resultado = _ultimoResultado!;
-    final categoria = resultado['categoria']?.toString() ?? 'sin categoría';
-    final accion = resultado['accion']?.toString() ?? 'sin acción';
     final objeto = resultado['objeto_detectado']?.toString() ?? 'Objeto';
+    final categoria = resultado['categoria']?.toString() ?? 'sin categoria';
+    final accion = resultado['accion']?.toString() ?? 'sin accion';
 
     return Container(
       width: double.infinity,
@@ -762,160 +1110,9 @@ class _HomeScreenState extends State<HomeScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Último análisis',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            objeto,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Categoría: $categoria',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Acción recomendada: $accion',
-            style: const TextStyle(color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTarjetaTotal() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2E7D32), Color(0xFF388E3C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2E7D32).withOpacity(0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.recycling_rounded,
-              color: Colors.white,
-              size: 36,
-            ),
-          ),
-          const SizedBox(width: 18),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$_objetosReciclados',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Objetos reciclados',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTarjetaMaterial(
-    String nombre,
-    int cantidad,
-    IconData icono,
-    Color color,
-  ) {
-    final total = _materialesPorTipo.values.fold(0, (sum, v) => sum + v);
-    final porcentaje = total > 0 ? (cantidad / total) : 0.0;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icono, color: color, size: 20),
-              ),
-              Text(
-                '$cantidad',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                nombre,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: porcentaje,
-                  minHeight: 4,
-                  backgroundColor: Colors.white12,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: Text(
+        'Ultimo analisis\n$objeto\nCategoria: $categoria\nAccion: $accion',
+        style: const TextStyle(color: Colors.white70, height: 1.5),
       ),
     );
   }
