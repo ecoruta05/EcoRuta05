@@ -82,6 +82,28 @@ class _HomeScreenState extends State<HomeScreen>
     return {for (final item in entradas) item.key: item.value};
   }
 
+  Map<String, int> get _conteoPorMaterial {
+    final acumulado = <String, int>{};
+
+    for (final venta in _ventasRecientes) {
+      final materiales = venta['materiales'] as List? ?? const [];
+      for (final item in materiales) {
+        final material = Map<String, dynamic>.from(item as Map);
+        final nombre = material['nombre']?.toString().trim() ?? '';
+        if (nombre.isEmpty) continue;
+        acumulado[nombre] = (acumulado[nombre] ?? 0) + 1;
+      }
+    }
+
+    final entradas = acumulado.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final item in entradas) item.key: item.value};
+  }
+
+  int get _totalRegistrosMaterial {
+    return _conteoPorMaterial.values.fold<int>(0, (sum, value) => sum + value);
+  }
+
   IconData _iconoMaterial(String material) {
     switch (material.toLowerCase()) {
       case 'plastico':
@@ -493,12 +515,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   child: TextButton.icon(
                                     onPressed: () {
                                       setModalState(() {
-                                        final eliminado = materiales.removeAt(index);
-                                        eliminado.entries.forEach((entry) {
-                                          if (entry.value is TextEditingController) {
-                                            (entry.value as TextEditingController).dispose();
-                                          }
-                                        });
+                                        materiales.removeAt(index);
                                       });
                                     },
                                     icon: const Icon(Icons.delete_outline, color: Colors.white70),
@@ -563,14 +580,6 @@ class _HomeScreenState extends State<HomeScreen>
         },
       ),
     );
-
-    for (final item in materiales) {
-      item.entries.forEach((entry) {
-        if (entry.value is TextEditingController) {
-          (entry.value as TextEditingController).dispose();
-        }
-      });
-    }
   }
 
   InputDecoration _inputDecoration(String label) {
@@ -736,6 +745,8 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildHeader(),
                 const SizedBox(height: 28),
                 _buildBotonEscanearResiduo(),
+                const SizedBox(height: 28),
+                _buildSeccionEstadisticasClasica(),
                 const SizedBox(height: 14),
                 _buildCardRegistrarVenta(),
                 const SizedBox(height: 28),
@@ -1148,6 +1159,179 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSeccionEstadisticasClasica() {
+    final materiales = _conteoPorMaterial.entries.take(4).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Mis estadísticas',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildTarjetaTotalClasica(),
+        if (materiales.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Por tipo de material',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
+            children: materiales
+                .map(
+                  (entry) => _buildTarjetaMaterialClasica(
+                    entry.key,
+                    entry.value,
+                    _iconoMaterial(entry.key),
+                    _colorMaterial(entry.key),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTarjetaTotalClasica() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2E7D32), Color(0xFF388E3C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2E7D32).withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.recycling_rounded,
+              color: Colors.white,
+              size: 36,
+            ),
+          ),
+          const SizedBox(width: 18),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$_totalRegistrosMaterial',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Materiales registrados',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTarjetaMaterialClasica(
+    String nombre,
+    int cantidad,
+    IconData icono,
+    Color color,
+  ) {
+    final total = _conteoPorMaterial.values.fold<int>(0, (sum, value) => sum + value);
+    final porcentaje = total > 0 ? cantidad / total : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icono, color: color, size: 20),
+              ),
+              Text(
+                '$cantidad',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                nombre,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: porcentaje,
+                  minHeight: 4,
+                  backgroundColor: Colors.white12,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
