@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../config/api_config.dart';
 import '../models/reciclaje_resumen.dart';
@@ -45,6 +46,82 @@ class _HomeScreenState extends State<HomeScreen>
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  final NumberFormat _formatoMiles = NumberFormat.decimalPattern('es_CO');
+
+  Map<String, double> get _kilosPorMaterial {
+    final acumulado = <String, double>{};
+
+    for (final venta in _ventasRecientes) {
+      final materiales = venta['materiales'] as List? ?? const [];
+      for (final item in materiales) {
+        final material = Map<String, dynamic>.from(item as Map);
+        final nombre = material['nombre']?.toString().trim() ?? '';
+        final kilos = (material['kilos'] as num?)?.toDouble() ?? 0;
+        if (nombre.isEmpty || kilos <= 0) continue;
+        acumulado[nombre] = (acumulado[nombre] ?? 0) + kilos;
+      }
+    }
+
+    final entradas = acumulado.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final item in entradas) item.key: item.value};
+  }
+
+  IconData _iconoMaterial(String material) {
+    switch (material.toLowerCase()) {
+      case 'plastico':
+        return Icons.water_drop_outlined;
+      case 'papel':
+      case 'carton':
+        return Icons.article_outlined;
+      case 'vidrio':
+        return Icons.wine_bar_outlined;
+      case 'metal':
+      case 'aluminio':
+      case 'cobre':
+      case 'latas':
+        return Icons.hardware_outlined;
+      default:
+        return Icons.recycling_outlined;
+    }
+  }
+
+  Color _colorMaterial(String material) {
+    switch (material.toLowerCase()) {
+      case 'plastico':
+        return const Color(0xFF4FC3F7);
+      case 'papel':
+      case 'carton':
+        return const Color(0xFFA5D6A7);
+      case 'vidrio':
+        return const Color(0xFF80CBC4);
+      case 'metal':
+      case 'aluminio':
+      case 'cobre':
+      case 'latas':
+        return const Color(0xFFFFCC80);
+      default:
+        return const Color(0xFF81C784);
+    }
+  }
+
+  String _formatearDinero(num valor) {
+    return _formatoMiles.format(valor.round());
+  }
+
+  void _formatearEntradaDinero(TextEditingController controller) {
+    final soloDigitos = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (soloDigitos.isEmpty) {
+      controller.value = const TextEditingValue(text: '');
+      return;
+    }
+
+    final texto = _formatoMiles.format(int.parse(soloDigitos));
+    controller.value = TextEditingValue(
+      text: texto,
+      selection: TextSelection.collapsed(offset: texto.length),
+    );
+  }
 
   @override
   void initState() {
@@ -221,8 +298,9 @@ class _HomeScreenState extends State<HomeScreen>
                         'valorGanado': double.parse(
                           (item['valor'] as TextEditingController)
                               .text
-                              .trim()
-                              .replaceAll(',', '.'),
+                              .replaceAll('.', '')
+                              .replaceAll(',', '')
+                              .trim(),
                         ),
                       }))
                   .toList();
@@ -282,6 +360,9 @@ class _HomeScreenState extends State<HomeScreen>
               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.82,
+              ),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: const Color(0xFF163525),
@@ -289,10 +370,11 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               child: Form(
                 key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     const Text(
                       'Registrar venta por QR',
                       style: TextStyle(
@@ -335,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       (material) => DropdownMenuItem<String>(
                                         value: material['material']?.toString() ?? '',
                                         child: Text(
-                                          '${material['material']} (${material['puntosPorKilo']} pts/kg)',
+                                          material['material']?.toString() ?? '',
                                           style: const TextStyle(color: Colors.white),
                                         ),
                                       ),
@@ -372,12 +454,18 @@ class _HomeScreenState extends State<HomeScreen>
                               TextFormField(
                                 controller:
                                     item['valor'] as TextEditingController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType: TextInputType.number,
                                 style: const TextStyle(color: Colors.white),
                                 decoration: _inputDecoration('Dinero ganado'),
+                                onChanged: (_) => _formatearEntradaDinero(
+                                  item['valor'] as TextEditingController,
+                                ),
                                 validator: (value) {
-                                  final n =
-                                      double.tryParse((value ?? '').replaceAll(',', '.'));
+                                  final n = double.tryParse(
+                                    (value ?? '')
+                                        .replaceAll('.', '')
+                                        .replaceAll(',', ''),
+                                  );
                                   return (n == null || n < 0)
                                       ? 'Ingresa un valor valido'
                                       : null;
@@ -451,7 +539,8 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -636,6 +725,10 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildCardRegistrarVenta(),
                 const SizedBox(height: 28),
                 _buildResumenVentas(),
+                if (_kilosPorMaterial.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildEstadisticasMateriales(),
+                ],
                 if (_ventasRecientes.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   _buildVentasRecientes(),
@@ -990,6 +1083,43 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildEstadisticasMateriales() {
+    final materiales = _kilosPorMaterial.entries.take(4).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Por material',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.45,
+          children: materiales
+              .map(
+                (entry) => _buildTarjetaMaterial(
+                  entry.key,
+                  entry.value,
+                  _iconoMaterial(entry.key),
+                  _colorMaterial(entry.key),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTarjetaPrincipal() {
     return Container(
       width: double.infinity,
@@ -1016,7 +1146,7 @@ class _HomeScreenState extends State<HomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '\$ ${_resumen.dineroGanado.toStringAsFixed(0)}',
+                  '\$ ${_formatearDinero(_resumen.dineroGanado)}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -1069,6 +1199,71 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildTarjetaMaterial(
+    String nombre,
+    double kilos,
+    IconData icono,
+    Color color,
+  ) {
+    final total = _kilosPorMaterial.values.fold<double>(0, (sum, v) => sum + v);
+    final porcentaje = total > 0 ? kilos / total : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icono, color: color, size: 20),
+              ),
+              Text(
+                '${kilos.toStringAsFixed(1)} kg',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                nombre,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: porcentaje,
+                  minHeight: 4,
+                  backgroundColor: Colors.white12,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVentasRecientes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1097,7 +1292,7 @@ class _HomeScreenState extends State<HomeScreen>
               border: Border.all(color: Colors.white10),
             ),
             child: Text(
-              '$nombre\n${kilos.toStringAsFixed(1)} kg | \$ ${dinero.toStringAsFixed(0)} | +$puntos puntos',
+              '$nombre\n${kilos.toStringAsFixed(1)} kg | \$ ${_formatearDinero(dinero)} | +$puntos puntos',
               style: const TextStyle(color: Colors.white70, height: 1.4),
             ),
           );
