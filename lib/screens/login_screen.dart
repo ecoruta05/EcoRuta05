@@ -53,10 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             MaterialPageRoute(
               builder: (_) => HomeScreen(
-<<<<<<< HEAD
-                nombreUsuario: data["usuario"]["nombre"],
-                token: data["token"],
-=======
                 nombreUsuario: usuario["nombre"]?.toString() ?? '',
                 authToken: data["token"]?.toString() ?? '',
                 userId: usuario["id"]?.toString() ?? '',
@@ -66,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         const <String, dynamic>{},
                   ),
                 ),
->>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
               ),
             ),
           );
@@ -79,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error de conexión con el servidor")),
+          const SnackBar(content: Text("Error de conexi�n con el servidor")),
         );
       }
     }
@@ -118,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    // 🔥 LOGO
+                    // ?? LOGO
                     const Icon(Icons.eco, size: 70, color: Colors.green),
 
                     const SizedBox(height: 10),
@@ -134,12 +129,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 30),
 
-                    // 🔥 EMAIL
+                    // ?? EMAIL
                     TextFormField(
                       controller: _emailController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Correo electrónico',
+                        labelText: 'Correo electr�nico',
                         labelStyle: const TextStyle(color: Colors.white70),
                         prefixIcon: const Icon(
                           Icons.email,
@@ -162,13 +157,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
-                    // 🔥 PASSWORD
+                    // ?? PASSWORD
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Contraseña',
+                        labelText: 'Contrase�a',
                         labelStyle: const TextStyle(color: Colors.white70),
                         prefixIcon: const Icon(
                           Icons.lock,
@@ -196,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Ingresa tu contraseña';
+                          return 'Ingresa tu contrase�a';
                         }
                         return null;
                       },
@@ -204,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // 🔥 BOTÓN LOGIN
+                    // ?? BOT�N LOGIN
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -226,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               )
                             : const Text(
-                                "Iniciar Sesión",
+                                "Iniciar Sesi�n",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -238,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
-                    // 🔥 BOTÓN REGISTRO
+                    // ?? BOT�N REGISTRO
                     SizedBox(
                       width: double.infinity,
                       height: 45,
@@ -273,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextButton(
                       onPressed: () {},
                       child: const Text(
-                        "¿Olvidaste tu contraseña?",
+                        "�Olvidaste tu contrase�a?",
                         style: TextStyle(color: Colors.white70),
                       ),
                     ),

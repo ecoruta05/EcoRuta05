@@ -8,11 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../config/api_config.dart';
-<<<<<<< HEAD
-import 'cambiar_password_screen.dart';
-=======
 import '../models/reciclaje_resumen.dart';
->>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
 import 'importancia_reciclaje_screen.dart';
 import 'login_screen.dart';
 import 'mapa_screen.dart';
@@ -20,16 +16,6 @@ import 'qr_venta_screen.dart';
 import 'tutorial_reciclaje_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-<<<<<<< HEAD
-  final String nombreUsuario;
-  final String token;
-
-  const HomeScreen({
-    super.key,
-    required this.nombreUsuario,
-    required this.token,
-  });
-=======
   const HomeScreen({
     super.key,
     required this.nombreUsuario,
@@ -42,7 +28,6 @@ class HomeScreen extends StatefulWidget {
   final String authToken;
   final String userId;
   final ReciclajeResumen resumenInicial;
->>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -188,11 +173,11 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF163525),
         title: const Text(
-          'Cerrar sesiÃ³n',
+          'Cerrar sesión',
           style: TextStyle(color: Colors.white),
         ),
         content: const Text(
-          'Â¿Seguro que deseas cerrar sesiÃ³n?',
+          '¿Seguro que deseas cerrar sesión?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -202,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cerrar sesiÃ³n'),
+            child: const Text('Cerrar sesión'),
           ),
         ],
       ),
@@ -783,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Hola, ${widget.nombreUsuario} ðŸ‘‹',
+                    'Hola, ${widget.nombreUsuario} ??',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -792,7 +777,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Â¿QuÃ© vas a reciclar hoy?',
+                    '¿Qué vas a reciclar hoy?',
                     style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                 ],
@@ -824,58 +809,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 ),
-<<<<<<< HEAD
-
-                Tooltip(
-                  message: 'Cambiar contraseÃ±a',
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CambiarPasswordScreen(
-                            token: widget.token,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(
-                        Icons.lock_reset_rounded,
-                        color: Color(0xFF90CAF9),
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ),
-
-                Tooltip(
-                  message: 'Cerrar sesiÃ³n',
-                  child: GestureDetector(
-                    onTap: _cerrarSesion,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(
-                        Icons.logout_rounded,
-                        color: Color(0xFFFFB74D),
-                        size: 24,
-                      ),
-=======
                 GestureDetector(
                   onTap: _cerrarSesion,
                   child: Container(
@@ -891,7 +824,6 @@ class _HomeScreenState extends State<HomeScreen>
                       Icons.logout_rounded,
                       color: Color(0xFFFFB74D),
                       size: 24,
->>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
                     ),
                   ),
                 ),
@@ -1169,7 +1101,7 @@ class _HomeScreenState extends State<HomeScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Mis estadÃ­sticas',
+          'Mis estadísticas',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
