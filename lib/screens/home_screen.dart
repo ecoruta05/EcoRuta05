@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../config/api_config.dart';
+import 'cambiar_password_screen.dart';
 import 'importancia_reciclaje_screen.dart';
 import 'login_screen.dart';
 import 'mapa_screen.dart';
@@ -12,8 +13,13 @@ import 'tutorial_reciclaje_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String nombreUsuario;
+  final String token;
 
-  const HomeScreen({super.key, required this.nombreUsuario});
+  const HomeScreen({
+    super.key,
+    required this.nombreUsuario,
+    required this.token,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -505,6 +511,37 @@ class _HomeScreenState extends State<HomeScreen>
                         Icons.map_rounded,
                         color: Color(0xFF66BB6A),
                         size: 26,
+                      ),
+                    ),
+                  ),
+                ),
+
+                Tooltip(
+                  message: 'Cambiar contraseña',
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CambiarPasswordScreen(
+                            token: widget.token,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: const Icon(
+                        Icons.lock_reset_rounded,
+                        color: Color(0xFF90CAF9),
+                        size: 24,
                       ),
                     ),
                   ),
