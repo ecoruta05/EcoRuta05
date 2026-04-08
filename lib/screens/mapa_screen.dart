@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/api_config.dart';
 import '../models/punto_compra.dart';
@@ -18,6 +19,7 @@ class MapaScreen extends StatefulWidget {
 
 class _MapaScreenState extends State<MapaScreen> {
   final MapController _mapController = MapController();
+  final TextEditingController _busquedaController = TextEditingController();
   final LatLng _villavicencio = const LatLng(4.1420, -73.6266);
   static const double _zoomPuntoSeleccionado = 15;
 
@@ -29,11 +31,32 @@ class _MapaScreenState extends State<MapaScreen> {
   bool _cargandoPuntos = true;
   String? _mensajeUbicacion;
   String? _mensajePuntos;
+  String _busqueda = '';
+
+  List<PuntoCompra> get _puntosFiltrados {
+    final termino = _busqueda.trim().toLowerCase();
+    if (termino.isEmpty) return _puntosCompra;
+
+    return _puntosCompra.where((punto) {
+      final materiales = punto.materialesCompra.join(' ').toLowerCase();
+      return punto.nombre.toLowerCase().contains(termino) ||
+          punto.barrio.toLowerCase().contains(termino) ||
+          punto.direccion.toLowerCase().contains(termino) ||
+          punto.referencia.toLowerCase().contains(termino) ||
+          materiales.contains(termino);
+    }).toList();
+  }
 
   @override
   void initState() {
     super.initState();
     _cargarPantalla();
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarPantalla() async {
@@ -87,9 +110,8 @@ class _MapaScreenState extends State<MapaScreen> {
 
       if (!mounted) return;
 
-      final ubicacion = LatLng(posicion.latitude, posicion.longitude);
       setState(() {
-        _miUbicacion = ubicacion;
+        _miUbicacion = LatLng(posicion.latitude, posicion.longitude);
         _cargandoUbicacion = false;
       });
     } catch (_) {
@@ -131,9 +153,9 @@ class _MapaScreenState extends State<MapaScreen> {
 
       setState(() {
         _puntosCompra = puntos;
-        _puntoSeleccionado = puntos.isNotEmpty ? puntos.first : null;
         _cargandoPuntos = false;
       });
+      _asegurarSeleccionValida(centrarSiCambia: false);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -141,6 +163,35 @@ class _MapaScreenState extends State<MapaScreen> {
         _mensajePuntos =
             'No se pudieron cargar los puntos de compra desde el backend.';
       });
+    }
+  }
+
+  void _actualizarBusqueda(String valor) {
+    setState(() {
+      _busqueda = valor;
+    });
+    _asegurarSeleccionValida();
+  }
+
+  void _asegurarSeleccionValida({bool centrarSiCambia = true}) {
+    final visibles = _puntosFiltrados;
+    if (visibles.isEmpty) {
+      if (_puntoSeleccionado != null) {
+        setState(() => _puntoSeleccionado = null);
+      }
+      return;
+    }
+
+    final seleccionActual = _puntoSeleccionado;
+    final existeSeleccion =
+        seleccionActual != null && visibles.any((item) => item.id == seleccionActual.id);
+
+    if (existeSeleccion) return;
+
+    final nuevoSeleccionado = visibles.first;
+    setState(() => _puntoSeleccionado = nuevoSeleccionado);
+    if (centrarSiCambia) {
+      _mapController.move(nuevoSeleccionado.ubicacion, _zoomPuntoSeleccionado);
     }
   }
 
@@ -152,27 +203,30 @@ class _MapaScreenState extends State<MapaScreen> {
   int get _indicePuntoSeleccionado {
     final punto = _puntoSeleccionado;
     if (punto == null) return -1;
-    return _puntosCompra.indexWhere((item) => item.id == punto.id);
+    return _puntosFiltrados.indexWhere((item) => item.id == punto.id);
   }
 
   void _seleccionarPuntoPorIndice(int indice) {
-    if (indice < 0 || indice >= _puntosCompra.length) return;
-    _seleccionarPunto(_puntosCompra[indice]);
+    final puntosVisibles = _puntosFiltrados;
+    if (indice < 0 || indice >= puntosVisibles.length) return;
+    _seleccionarPunto(puntosVisibles[indice]);
   }
 
   void _irAlPuntoAnterior() {
-    if (_puntosCompra.length <= 1) return;
+    final puntosVisibles = _puntosFiltrados;
+    if (puntosVisibles.length <= 1) return;
     final indiceActual = _indicePuntoSeleccionado;
     final indiceAnterior =
-        indiceActual <= 0 ? _puntosCompra.length - 1 : indiceActual - 1;
+        indiceActual <= 0 ? puntosVisibles.length - 1 : indiceActual - 1;
     _seleccionarPuntoPorIndice(indiceAnterior);
   }
 
   void _irAlPuntoSiguiente() {
-    if (_puntosCompra.length <= 1) return;
+    final puntosVisibles = _puntosFiltrados;
+    if (puntosVisibles.length <= 1) return;
     final indiceActual = _indicePuntoSeleccionado;
     final indiceSiguiente =
-        indiceActual == -1 || indiceActual >= _puntosCompra.length - 1
+        indiceActual == -1 || indiceActual >= puntosVisibles.length - 1
             ? 0
             : indiceActual + 1;
     _seleccionarPuntoPorIndice(indiceSiguiente);
@@ -197,25 +251,108 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   void _mostrarTodosLosPuntos() {
-    if (_puntosCompra.isEmpty && _miUbicacion == null) {
+    final visibles = _puntosFiltrados;
+    if (visibles.isEmpty && _miUbicacion == null) {
       return;
     }
 
     final bounds = LatLngBounds.fromPoints([
-      ..._puntosCompra.map((p) => p.ubicacion),
+      ...visibles.map((p) => p.ubicacion),
       if (_miUbicacion != null) _miUbicacion!,
     ]);
 
     _mapController.fitCamera(
       CameraFit.bounds(
         bounds: bounds,
-        padding: const EdgeInsets.all(56),
+        padding: const EdgeInsets.fromLTRB(44, 44, 120, 260),
       ),
     );
   }
 
+  Future<void> _abrirComoLlegar(PuntoCompra punto) async {
+    final lat = punto.ubicacion.latitude;
+    final lng = punto.ubicacion.longitude;
+    final destino = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+    );
+
+    if (!await launchUrl(destino, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir Google Maps en este momento.'),
+        ),
+      );
+    }
+  }
+
+  double? _distanciaKm(PuntoCompra punto) {
+    final ubicacion = _miUbicacion;
+    if (ubicacion == null) return null;
+
+    final metros = Geolocator.distanceBetween(
+      ubicacion.latitude,
+      ubicacion.longitude,
+      punto.ubicacion.latitude,
+      punto.ubicacion.longitude,
+    );
+
+    return metros / 1000;
+  }
+
+  bool? _estaAbiertoAhora(PuntoCompra punto) {
+    final texto = punto.horario.toLowerCase();
+    final match = RegExp(
+      r'(\d{1,2}:\d{2})\s*([ap])\.\s*m\.\s*-\s*(\d{1,2}:\d{2})\s*([ap])\.\s*m\.',
+    ).firstMatch(texto);
+
+    if (match == null) return null;
+
+    final ahora = DateTime.now();
+    final apertura = _convertirHora(match.group(1)!, match.group(2)!);
+    final cierre = _convertirHora(match.group(3)!, match.group(4)!);
+    final minutosActuales = ahora.hour * 60 + ahora.minute;
+
+    final diasActivos = _diasActivos(texto);
+    if (diasActivos != null && !diasActivos.contains(ahora.weekday)) {
+      return false;
+    }
+
+    return minutosActuales >= apertura && minutosActuales <= cierre;
+  }
+
+  int _convertirHora(String hora, String periodo) {
+    final partes = hora.split(':');
+    var horas = int.parse(partes[0]);
+    final minutos = int.parse(partes[1]);
+    final esPm = periodo == 'p';
+
+    if (esPm && horas != 12) horas += 12;
+    if (!esPm && horas == 12) horas = 0;
+
+    return horas * 60 + minutos;
+  }
+
+  Set<int>? _diasActivos(String horario) {
+    if (horario.contains('lunes a sabado')) {
+      return {1, 2, 3, 4, 5, 6};
+    }
+    if (horario.contains('lunes a viernes')) {
+      return {1, 2, 3, 4, 5};
+    }
+    if (horario.contains('lunes a domingo')) {
+      return {1, 2, 3, 4, 5, 6, 7};
+    }
+    if (horario.contains('sabado y domingo')) {
+      return {6, 7};
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final puntosVisibles = _puntosFiltrados;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Puntos de compra en Villavicencio'),
@@ -234,7 +371,7 @@ class _MapaScreenState extends State<MapaScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.ecoruta_temp',
               ),
-              MarkerLayer(markers: _buildMarkers()),
+              MarkerLayer(markers: _buildMarkers(puntosVisibles)),
             ],
           ),
           Positioned(
@@ -243,88 +380,87 @@ class _MapaScreenState extends State<MapaScreen> {
             right: 16,
             child: Column(
               children: [
+                _buildBuscador(),
+                const SizedBox(height: 12),
                 _buildEstadoUbicacion(),
                 if (_buildEstadoUbicacion() is! SizedBox) const SizedBox(height: 12),
                 _buildEstadoPuntos(),
                 const SizedBox(height: 12),
-                _buildResumenPuntos(),
+                _buildResumenPuntos(puntosVisibles.length),
               ],
             ),
           ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: _buildTarjetaPunto(),
-          ),
+          _buildPanelArrastrable(),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'refrescar',
-            backgroundColor: const Color(0xFF6D4C41),
-            onPressed: _cargarPantalla,
-            child: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'todos',
-            backgroundColor: const Color(0xFF8E6E53),
-            onPressed: _mostrarTodosLosPuntos,
-            child: const Icon(Icons.filter_center_focus_rounded),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'villavo',
-            backgroundColor: const Color(0xFF2E7D32),
-            onPressed: _irAVillavicencio,
-            child: const Icon(Icons.location_city),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'miposicion',
-            backgroundColor: const Color(0xFF1565C0),
-            onPressed: _irAMiUbicacion,
-            child: const Icon(Icons.my_location),
-          ),
-        ],
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 170),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FloatingActionButton(
+              heroTag: 'refrescar',
+              backgroundColor: const Color(0xFF6D4C41),
+              onPressed: _cargarPantalla,
+              child: const Icon(Icons.refresh_rounded),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: 'todos',
+              backgroundColor: const Color(0xFF8E6E53),
+              onPressed: _mostrarTodosLosPuntos,
+              child: const Icon(Icons.filter_center_focus_rounded),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: 'villavo',
+              backgroundColor: const Color(0xFF2E7D32),
+              onPressed: _irAVillavicencio,
+              child: const Icon(Icons.location_city),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: 'miposicion',
+              backgroundColor: const Color(0xFF1565C0),
+              onPressed: _irAMiUbicacion,
+              child: const Icon(Icons.my_location),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  List<Marker> _buildMarkers() {
+  List<Marker> _buildMarkers(List<PuntoCompra> puntosVisibles) {
     return [
-      ..._puntosCompra.map((punto) {
+      ...puntosVisibles.map((punto) {
         final seleccionado = _puntoSeleccionado?.id == punto.id;
         return Marker(
           point: punto.ubicacion,
-          width: seleccionado ? 68 : 56,
-          height: seleccionado ? 68 : 56,
+          width: seleccionado ? 58 : 46,
+          height: seleccionado ? 58 : 46,
           child: GestureDetector(
             onTap: () => _seleccionarPunto(punto),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _colorPorMaterial(punto).withOpacity(seleccionado ? 0.95 : 0.82),
+                color: _colorPorMaterial(punto).withOpacity(seleccionado ? 0.96 : 0.8),
                 border: Border.all(
-                  color: Colors.white,
-                  width: seleccionado ? 2.5 : 1.2,
+                  color: seleccionado ? Colors.white : Colors.white70,
+                  width: seleccionado ? 2.2 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: _colorPorMaterial(punto).withOpacity(0.35),
-                    blurRadius: seleccionado ? 14 : 8,
-                    spreadRadius: seleccionado ? 1 : 0,
+                    color: _colorPorMaterial(punto).withOpacity(0.28),
+                    blurRadius: seleccionado ? 10 : 6,
                   ),
                 ],
               ),
               child: Icon(
                 _iconoPorMaterial(punto),
                 color: Colors.white,
-                size: seleccionado ? 26 : 21,
+                size: seleccionado ? 20 : 16,
               ),
             ),
           ),
@@ -333,28 +469,65 @@ class _MapaScreenState extends State<MapaScreen> {
       if (_miUbicacion != null)
         Marker(
           point: _miUbicacion!,
-          width: 54,
-          height: 54,
+          width: 46,
+          height: 46,
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF1565C0).withOpacity(0.92),
-              border: Border.all(color: Colors.white, width: 2.5),
+              border: Border.all(color: Colors.white, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1565C0).withOpacity(0.35),
-                  blurRadius: 12,
+                  color: const Color(0xFF1565C0).withOpacity(0.3),
+                  blurRadius: 10,
                 ),
               ],
             ),
             child: const Icon(
               Icons.my_location,
-              size: 22,
+              size: 18,
               color: Colors.white,
             ),
           ),
         ),
     ];
+  }
+
+  Widget _buildBuscador() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xF2193127),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _busquedaController,
+        onChanged: _actualizarBusqueda,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Buscar por nombre, barrio o material',
+          hintStyle: const TextStyle(color: Colors.white54),
+          prefixIcon: const Icon(Icons.search_rounded, color: Colors.white70),
+          suffixIcon: _busqueda.isEmpty
+              ? null
+              : IconButton(
+                  onPressed: () {
+                    _busquedaController.clear();
+                    _actualizarBusqueda('');
+                  },
+                  icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        ),
+      ),
+    );
   }
 
   Widget _buildEstadoUbicacion() {
@@ -459,7 +632,12 @@ class _MapaScreenState extends State<MapaScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildResumenPuntos() {
+  Widget _buildResumenPuntos(int cantidadVisible) {
+    final mostrandoFiltro = _busqueda.trim().isNotEmpty;
+    final texto = mostrandoFiltro
+        ? '$cantidadVisible resultados de ${_puntosCompra.length} puntos'
+        : '$cantidadVisible puntos de compra cargados para Villavicencio';
+
     return _InfoCard(
       color: const Color(0xCC163525),
       child: Row(
@@ -468,7 +646,7 @@ class _MapaScreenState extends State<MapaScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              '${_puntosCompra.length} puntos de compra cargados para Villavicencio',
+              texto,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -480,162 +658,217 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
-  Widget _buildTarjetaPunto() {
-    final punto = _puntoSeleccionado;
-    if (punto == null) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xEE10281D),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: const Text(
-          'Selecciona un punto en el mapa para ver que materiales compra y su informacion detallada.',
-          style: TextStyle(color: Colors.white70, height: 1.4),
-        ),
-      );
-    }
+  Widget _buildPanelArrastrable() {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.23,
+      minChildSize: 0.18,
+      maxChildSize: 0.58,
+      builder: (context, scrollController) {
+        final punto = _puntoSeleccionado;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xEE10281D),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.28),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _colorPorMaterial(punto).withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _iconoPorMaterial(punto),
-                  color: _colorPorMaterial(punto),
-                  size: 22,
-                ),
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xF110281D),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(color: Colors.white10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.32),
+                blurRadius: 24,
+                offset: const Offset(0, -6),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            ],
+          ),
+          child: punto == null
+              ? ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),
+                  children: const [
+                    Center(
+                      child: _SheetHandle(),
+                    ),
+                    SizedBox(height: 18),
                     Text(
-                      punto.nombre,
-                      style: const TextStyle(
+                      'Selecciona un punto en el mapa o usa el buscador para ver materiales, distancia y como llegar.',
+                      style: TextStyle(color: Colors.white70, height: 1.4),
+                    ),
+                  ],
+                )
+              : ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),
+                  children: [
+                    const Center(child: _SheetHandle()),
+                    const SizedBox(height: 14),
+                    _buildCabeceraPanel(punto),
+                    const SizedBox(height: 14),
+                    _buildResumenRapido(punto),
+                    const SizedBox(height: 14),
+                    _buildAccionesPanel(punto),
+                    const SizedBox(height: 16),
+                    _buildDetalle(icono: Icons.location_on_outlined, texto: punto.barrio),
+                    if (punto.referencia.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _buildDetalle(
+                        icono: Icons.place_outlined,
+                        texto: punto.referencia,
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    _buildDetalle(
+                      icono: Icons.schedule_rounded,
+                      texto: punto.horario,
+                    ),
+                    if (punto.telefono.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _buildDetalle(
+                        icono: Icons.phone_outlined,
+                        texto: punto.telefono,
+                      ),
+                    ],
+                    if (punto.descripcion.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _buildDetalle(
+                        icono: Icons.info_outline_rounded,
+                        texto: punto.descripcion,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Materiales que compran',
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      punto.direccion,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: punto.materialesCompra
+                          .map(
+                            (material) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _colorPorMaterial(punto).withOpacity(0.16),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: _colorPorMaterial(punto).withOpacity(0.35),
+                                ),
+                              ),
+                              child: Text(
+                                material,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ],
                 ),
-              ),
-              if (_puntosCompra.length > 1) ...[
-                const SizedBox(width: 8),
-                _buildNavegacionPuntos(),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (_puntosCompra.length > 1) ...[
-            Text(
-              '${_indicePuntoSeleccionado + 1} de ${_puntosCompra.length}',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-          _buildDetalle(icono: Icons.location_on_outlined, texto: punto.barrio),
-          if (punto.referencia.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildDetalle(icono: Icons.place_outlined, texto: punto.referencia),
-          ],
-          const SizedBox(height: 8),
-          _buildDetalle(icono: Icons.schedule_rounded, texto: punto.horario),
-          if (punto.telefono.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildDetalle(icono: Icons.phone_outlined, texto: punto.telefono),
-          ],
-          if (punto.descripcion.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildDetalle(
-              icono: Icons.info_outline_rounded,
-              texto: punto.descripcion,
-            ),
-          ],
-          const SizedBox(height: 10),
-          const Text(
-            'Materiales que compran',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: punto.materialesCompra
-                .map(
-                  (material) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _colorPorMaterial(punto).withOpacity(0.16),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: _colorPorMaterial(punto).withOpacity(0.35),
-                      ),
-                    ),
-                    child: Text(
-                      material,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildNavegacionPuntos() {
+  Widget _buildCabeceraPanel(PuntoCompra punto) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: _colorPorMaterial(punto).withOpacity(0.18),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            _iconoPorMaterial(punto),
+            color: _colorPorMaterial(punto),
+            size: 19,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                punto.nombre,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                punto.direccion,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResumenRapido(PuntoCompra punto) {
+    final abierto = _estaAbiertoAhora(punto);
+    final distancia = _distanciaKm(punto);
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (abierto != null)
+          _buildChipEstado(
+            icono: abierto ? Icons.check_circle_outline : Icons.access_time_rounded,
+            texto: abierto ? 'Abierto ahora' : 'Cerrado',
+            color: abierto ? const Color(0xFF43A047) : const Color(0xFFE65100),
+          ),
+        if (distancia != null)
+          _buildChipEstado(
+            icono: Icons.near_me_rounded,
+            texto: '${distancia.toStringAsFixed(distancia < 10 ? 1 : 0)} km',
+            color: const Color(0xFF1565C0),
+          ),
+        _buildChipEstado(
+          icono: Icons.layers_outlined,
+          texto: '${punto.materialesCompra.length} materiales',
+          color: const Color(0xFF6D4C41),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAccionesPanel(PuntoCompra punto) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => _abrirComoLlegar(punto),
+            icon: const Icon(Icons.route_rounded),
+            label: const Text('Como llegar'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
         _buildBotonFlecha(
           icono: Icons.chevron_left_rounded,
           onTap: _irAlPuntoAnterior,
@@ -649,6 +882,36 @@ class _MapaScreenState extends State<MapaScreen> {
     );
   }
 
+  Widget _buildChipEstado({
+    required IconData icono,
+    required String texto,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, color: color, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            texto,
+            style: TextStyle(
+              color: color,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBotonFlecha({
     required IconData icono,
     required VoidCallback onTap,
@@ -657,10 +920,10 @@ class _MapaScreenState extends State<MapaScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Ink(
-        width: 34,
-        height: 34,
+        width: 38,
+        height: 38,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withOpacity(0.06),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white12),
         ),
@@ -678,8 +941,6 @@ class _MapaScreenState extends State<MapaScreen> {
         Expanded(
           child: Text(
             texto,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
@@ -757,6 +1018,22 @@ class _InfoCard extends StatelessWidget {
         ],
       ),
       child: child,
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 5,
+      decoration: BoxDecoration(
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(999),
+      ),
     );
   }
 }
