@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -35,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
 
-  // 🔥 VALIDAR PASSWORD
+  // Validar password
   void validarPassword(String value) {
     setState(() {
       tieneMinimo = value.length >= 6;
@@ -45,14 +45,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  // 🔥 VALIDAR CONFIRM PASSWORD
+  // Validar confirm password
   void validarConfirmPassword(String value) {
     setState(() {
       passwordsIguales = value == _passwordController.text;
     });
   }
 
-  // 🔥 VALIDAR CORREO
+  // Validar correo
   Future<void> validarCorreo(String value) async {
     final correo = value.toLowerCase().trim();
     ultimoCorreoConsultado = correo;
@@ -453,4 +453,5 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
 
