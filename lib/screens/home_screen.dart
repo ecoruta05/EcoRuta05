@@ -838,47 +838,54 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0A1F14), Color(0xFF0F2D1A), Color(0xFF1A3A2A)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 28),
-                _buildBotonEscanearResiduo(),
-                const SizedBox(height: 16),
-                _buildSelectorManualMaterial(),
-                const SizedBox(height: 28),
-                _buildSeccionEstadisticasClasica(),
-                const SizedBox(height: 14),
-                _buildCardRegistrarVenta(),
-                const SizedBox(height: 28),
-                _buildResumenVentas(),
-                if (_kilosPorMaterial.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _buildEstadisticasMateriales(),
-                ],
-                if (_ventasRecientes.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _buildVentasRecientes(),
-                ],
-                if (_ultimoResultado != null) ...[
-                  const SizedBox(height: 24),
-                  _buildUltimoResultado(),
-                ],
-              ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0A1F14), Color(0xFF0F2D1A), Color(0xFF1A3A2A)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 28),
+                    _buildBotonEscanearResiduo(),
+                    const SizedBox(height: 16),
+                    _buildSelectorManualMaterial(),
+                    const SizedBox(height: 28),
+                    _buildSeccionEstadisticasClasica(),
+                    const SizedBox(height: 14),
+                    _buildCardRegistrarVenta(),
+                    const SizedBox(height: 28),
+                    _buildResumenVentas(),
+                    if (_kilosPorMaterial.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildEstadisticasMateriales(),
+                    ],
+                    if (_ventasRecientes.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildVentasRecientes(),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          if (_ultimoResultado != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.45),
+                child: Center(child: _buildUltimoResultado()),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1683,10 +1690,11 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildUltimoResultado() {
     final resultado = _ultimoResultado!;
     final objeto = resultado['objeto_detectado']?.toString() ?? 'Objeto';
-    final categoria = resultado['categoria']?.toString() ?? 'sin categoría';
-    final accion = resultado['accion']?.toString() ?? 'sin acción';
+    final categoria = resultado['categoria']?.toString() ?? 'sin categoria';
+    final accion = resultado['accion']?.toString() ?? 'sin accion';
     final instrucciones = resultado['instrucciones']?.toString() ?? '';
     final modelo = resultado['modelo']?.toString() ?? '';
+    final esSeleccionManual = modelo == 'seleccion_manual';
     final labelModelo = resultado['label_modelo']?.toString() ?? '';
     final confianza = (resultado['confianza'] as num?)?.toDouble();
     final otrasPosibilidades =
@@ -1705,17 +1713,20 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Container(
       width: double.infinity,
+      constraints: const BoxConstraints(maxWidth: 500),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        color: const Color(0xFF123C2A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white24),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Último análisis',
+            'Resultado del analisis',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -1733,7 +1744,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Categoría: $categoria\nAcción: $accion',
+            'Categoria: $categoria\nAccion: $accion',
             style: const TextStyle(color: Colors.white70, height: 1.5),
           ),
           if (confianza != null) ...[
@@ -1760,8 +1771,18 @@ class _HomeScreenState extends State<HomeScreen>
           if (detalleAlternativas.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Alternativas: $detalleAlternativas',
+              'Opciones: $detalleAlternativas',
               style: const TextStyle(color: Colors.white54, height: 1.4),
+            ),
+          ],
+          if (esSeleccionManual) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Seleccion manual',
+              style: TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
           if (modelo.isNotEmpty) ...[
@@ -1771,8 +1792,24 @@ class _HomeScreenState extends State<HomeScreen>
               style: const TextStyle(color: Colors.white38),
             ),
           ],
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() => _ultimoResultado = null),
+              child: const Text(
+                'Cerrar',
+                style: TextStyle(
+                  color: Color(0xFFC2F0C2),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+
