@@ -173,11 +173,11 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF163525),
         title: const Text(
-          'Cerrar sesi�n',
+          'Cerrar sesión',
           style: TextStyle(color: Colors.white),
         ),
         content: const Text(
-          '�Seguro que deseas cerrar sesi�n?',
+          '¿Seguro que deseas cerrar sesión?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cerrar sesi�n'),
+            child: const Text('Cerrar sesión'),
           ),
         ],
       ),
@@ -202,10 +202,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _cargarDatosIniciales() async {
-    await Future.wait([
-      _cargarResumenReciclaje(),
-      _cargarMaterialesPuntaje(),
-    ]);
+    await Future.wait([_cargarResumenReciclaje(), _cargarMaterialesPuntaje()]);
   }
 
   Future<void> _cargarResumenReciclaje() async {
@@ -294,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen>
             : '',
         'kilos': TextEditingController(),
         'valor': TextEditingController(),
-      }
+      },
     ];
 
     await showModalBottomSheet(
@@ -309,26 +306,28 @@ class _HomeScreenState extends State<HomeScreen>
 
             try {
               final materialesPayload = materiales
-                  .map((item) => ({
-                        'nombre': item['nombre']?.toString() ?? '',
-                        'kilos': double.parse(
-                          (item['kilos'] as TextEditingController)
-                              .text
-                              .trim()
-                              .replaceAll(',', '.'),
-                        ),
-                        'valorGanado': double.parse(
-                          (item['valor'] as TextEditingController)
-                              .text
-                              .replaceAll('.', '')
-                              .replaceAll(',', '')
-                              .trim(),
-                        ),
-                      }))
+                  .map(
+                    (item) => ({
+                      'nombre': item['nombre']?.toString() ?? '',
+                      'kilos': double.parse(
+                        (item['kilos'] as TextEditingController).text
+                            .trim()
+                            .replaceAll(',', '.'),
+                      ),
+                      'valorGanado': double.parse(
+                        (item['valor'] as TextEditingController).text
+                            .replaceAll('.', '')
+                            .replaceAll(',', '')
+                            .trim(),
+                      ),
+                    }),
+                  )
                   .toList();
 
               final response = await http.post(
-                Uri.parse('${ApiConfig.authBaseUrl}/api/ventas-reciclaje/registrar'),
+                Uri.parse(
+                  '${ApiConfig.authBaseUrl}/api/ventas-reciclaje/registrar',
+                ),
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': 'Bearer ${widget.authToken}',
@@ -367,7 +366,9 @@ class _HomeScreenState extends State<HomeScreen>
               );
             } catch (error) {
               ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(content: Text('No se pudo registrar la venta: $error')),
+                SnackBar(
+                  content: Text('No se pudo registrar la venta: $error'),
+                ),
               );
             } finally {
               if (context.mounted) setModalState(() => guardando = false);
@@ -397,165 +398,189 @@ class _HomeScreenState extends State<HomeScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    const Text(
-                      'Registrar venta por QR',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                      const Text(
+                        'Registrar venta por QR',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Materiales entregados',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Materiales entregados',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(materiales.length, (index) {
-                      final item = materiales[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Column(
-                            children: [
-                              DropdownButtonFormField<String>(
-                                value: (item['nombre']?.toString().isNotEmpty ?? false)
-                                    ? item['nombre'] as String
-                                    : null,
-                                dropdownColor: const Color(0xFF163525),
-                                style: const TextStyle(color: Colors.white),
-                                decoration: _inputDecoration('Material ${index + 1}'),
-                                items: _materialesDisponibles
-                                    .map(
-                                      (material) => DropdownMenuItem<String>(
-                                        value: material['material']?.toString() ?? '',
-                                        child: Text(
-                                          material['material']?.toString() ?? '',
-                                          style: const TextStyle(color: Colors.white),
+                      const SizedBox(height: 10),
+                      ...List.generate(materiales.length, (index) {
+                        final item = materiales[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Column(
+                              children: [
+                                DropdownButtonFormField<String>(
+                                  value:
+                                      (item['nombre']?.toString().isNotEmpty ??
+                                          false)
+                                      ? item['nombre'] as String
+                                      : null,
+                                  dropdownColor: const Color(0xFF163525),
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _inputDecoration(
+                                    'Material ${index + 1}',
+                                  ),
+                                  items: _materialesDisponibles
+                                      .map(
+                                        (material) => DropdownMenuItem<String>(
+                                          value:
+                                              material['material']
+                                                  ?.toString() ??
+                                              '',
+                                          child: Text(
+                                            material['material']?.toString() ??
+                                                '',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  setModalState(() {
-                                    item['nombre'] = value ?? '';
-                                  });
-                                },
-                                validator: (value) {
-                                  if ((value ?? '').trim().isEmpty) {
-                                    return 'Selecciona el material';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 10),
-                              TextFormField(
-                                controller:
-                                    item['kilos'] as TextEditingController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: const TextStyle(color: Colors.white),
-                                decoration: _inputDecoration('Kilos'),
-                                validator: (value) {
-                                  final n =
-                                      double.tryParse((value ?? '').replaceAll(',', '.'));
-                                  return (n == null || n <= 0)
-                                      ? 'Ingresa kilos validos'
-                                      : null;
-                                },
-                              ),
-                              const SizedBox(height: 10),
-                              TextFormField(
-                                controller:
-                                    item['valor'] as TextEditingController,
-                                keyboardType: TextInputType.number,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: _inputDecoration('Dinero ganado'),
-                                onChanged: (_) => _formatearEntradaDinero(
-                                  item['valor'] as TextEditingController,
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setModalState(() {
+                                      item['nombre'] = value ?? '';
+                                    });
+                                  },
+                                  validator: (value) {
+                                    if ((value ?? '').trim().isEmpty) {
+                                      return 'Selecciona el material';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                validator: (value) {
-                                  final n = double.tryParse(
-                                    (value ?? '')
-                                        .replaceAll('.', '')
-                                        .replaceAll(',', ''),
-                                  );
-                                  return (n == null || n < 0)
-                                      ? 'Ingresa un valor valido'
-                                      : null;
-                                },
-                              ),
-                              if (materiales.length > 1) ...[
                                 const SizedBox(height: 10),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton.icon(
-                                    onPressed: () {
-                                      setModalState(() {
-                                        materiales.removeAt(index);
-                                      });
-                                    },
-                                    icon: const Icon(Icons.delete_outline, color: Colors.white70),
-                                    label: const Text(
-                                      'Quitar',
-                                      style: TextStyle(color: Colors.white70),
+                                TextFormField(
+                                  controller:
+                                      item['kilos'] as TextEditingController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _inputDecoration('Kilos'),
+                                  validator: (value) {
+                                    final n = double.tryParse(
+                                      (value ?? '').replaceAll(',', '.'),
+                                    );
+                                    return (n == null || n <= 0)
+                                        ? 'Ingresa kilos válidos'
+                                        : null;
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  controller:
+                                      item['valor'] as TextEditingController,
+                                  keyboardType: TextInputType.number,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _inputDecoration('Dinero ganado'),
+                                  onChanged: (_) => _formatearEntradaDinero(
+                                    item['valor'] as TextEditingController,
+                                  ),
+                                  validator: (value) {
+                                    final n = double.tryParse(
+                                      (value ?? '')
+                                          .replaceAll('.', '')
+                                          .replaceAll(',', ''),
+                                    );
+                                    return (n == null || n < 0)
+                                        ? 'Ingresa un valor válido'
+                                        : null;
+                                  },
+                                ),
+                                if (materiales.length > 1) ...[
+                                  const SizedBox(height: 10),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () {
+                                        setModalState(() {
+                                          materiales.removeAt(index);
+                                        });
+                                      },
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.white70,
+                                      ),
+                                      label: const Text(
+                                        'Quitar',
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
+                            ),
+                          ),
+                        );
+                      }),
+                      TextButton.icon(
+                        onPressed: () {
+                          setModalState(() {
+                            materiales.add({
+                              'nombre': _materialesDisponibles.isNotEmpty
+                                  ? _materialesDisponibles.first['material']
+                                            ?.toString() ??
+                                        ''
+                                  : '',
+                              'kilos': TextEditingController(),
+                              'valor': TextEditingController(),
+                            });
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.add_circle_outline,
+                          color: Color(0xFF9BE7A1),
+                        ),
+                        label: const Text(
+                          'Agregar otro material',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: guardando ? null : registrar,
+                          icon: guardando
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.qr_code_scanner_rounded),
+                          label: Text(
+                            guardando ? 'Guardando...' : 'Guardar venta',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF43A047),
+                            foregroundColor: Colors.white,
                           ),
                         ),
-                      );
-                    }),
-                    TextButton.icon(
-                      onPressed: () {
-                        setModalState(() {
-                          materiales.add({
-                            'nombre': _materialesDisponibles.isNotEmpty
-                                ? _materialesDisponibles.first['material']?.toString() ?? ''
-                                : '',
-                            'kilos': TextEditingController(),
-                            'valor': TextEditingController(),
-                          });
-                        });
-                      },
-                      icon: const Icon(Icons.add_circle_outline, color: Color(0xFF9BE7A1)),
-                      label: const Text(
-                        'Agregar otro material',
-                        style: TextStyle(color: Colors.white),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: guardando ? null : registrar,
-                        icon: guardando
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.qr_code_scanner_rounded),
-                        label: Text(guardando ? 'Guardando...' : 'Guardar venta'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF43A047),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
                     ],
                   ),
                 ),
@@ -612,7 +637,9 @@ class _HomeScreenState extends State<HomeScreen>
       );
       request.files.add(await http.MultipartFile.fromPath('file', foto.path));
 
-      final streamed = await request.send().timeout(const Duration(seconds: 20));
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 20),
+      );
       final response = await http.Response.fromStream(streamed);
       final data = response.body.isNotEmpty
           ? jsonDecode(response.body) as Map<String, dynamic>
@@ -768,7 +795,7 @@ class _HomeScreenState extends State<HomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Hola, ${widget.nombreUsuario} ??',
+                    '¡Hola, ${widget.nombreUsuario}!',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -777,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    '�Qu� vas a reciclar hoy?',
+                    '¿Qué vas a reciclar hoy?',
                     style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                 ],
@@ -1086,7 +1113,7 @@ class _HomeScreenState extends State<HomeScreen>
             border: Border.all(color: Colors.white10),
           ),
           child: const Text(
-            'Tus puntos se podran redimir por convenios. Cada kilo registrado suma puntos automaticamente.',
+            'Tus puntos se podrán redimir por convenios. Cada kilo registrado suma puntos automáticamente.',
             style: TextStyle(color: Colors.white70, height: 1.4),
           ),
         ),
@@ -1101,7 +1128,7 @@ class _HomeScreenState extends State<HomeScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Mis estad�sticas',
+          'Mis estadísticas',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -1208,7 +1235,10 @@ class _HomeScreenState extends State<HomeScreen>
     IconData icono,
     Color color,
   ) {
-    final total = _conteoPorMaterial.values.fold<int>(0, (sum, value) => sum + value);
+    final total = _conteoPorMaterial.values.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
     final porcentaje = total > 0 ? cantidad / total : 0.0;
 
     return Container(
@@ -1322,7 +1352,11 @@ class _HomeScreenState extends State<HomeScreen>
               color: Colors.white.withOpacity(0.14),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.savings_outlined, color: Colors.white, size: 30),
+            child: const Icon(
+              Icons.savings_outlined,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1340,7 +1374,10 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 4),
                 const Text(
                   'Dinero ganado',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -1453,7 +1490,7 @@ class _HomeScreenState extends State<HomeScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Ultimas ventas',
+          'Últimas ventas',
           style: TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -1488,8 +1525,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildUltimoResultado() {
     final resultado = _ultimoResultado!;
     final objeto = resultado['objeto_detectado']?.toString() ?? 'Objeto';
-    final categoria = resultado['categoria']?.toString() ?? 'sin categoria';
-    final accion = resultado['accion']?.toString() ?? 'sin accion';
+    final categoria = resultado['categoria']?.toString() ?? 'sin categoría';
+    final accion = resultado['accion']?.toString() ?? 'sin acción';
 
     return Container(
       width: double.infinity,
@@ -1500,7 +1537,7 @@ class _HomeScreenState extends State<HomeScreen>
         border: Border.all(color: Colors.white10),
       ),
       child: Text(
-        'Ultimo analisis\n$objeto\nCategoria: $categoria\nAccion: $accion',
+        'Último análisis\n$objeto\nCategoría: $categoria\nAcción: $accion',
         style: const TextStyle(color: Colors.white70, height: 1.5),
       ),
     );

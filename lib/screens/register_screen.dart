@@ -180,8 +180,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildRule("Minimo 6 caracteres", tieneMinimo),
-        _buildRule("Contiene numero", tieneNumero),
+        _buildRule("Mínimo 6 caracteres", tieneMinimo),
+        _buildRule("Contiene número", tieneNumero),
         _buildRule("Contiene letra", tieneLetra),
       ],
     );
@@ -189,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildPasswordMatch() {
     return _buildRule(
-      passwordsIguales ? "Las contrasenas coinciden" : "No coinciden",
+      passwordsIguales ? "Las contraseñas coinciden" : "No coinciden",
       passwordsIguales,
     );
   }
@@ -342,7 +342,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           style: const TextStyle(color: Colors.white),
-                          decoration: _decoration("Telefono", Icons.phone),
+                          decoration: _decoration("Teléfono", Icons.phone),
                         ),
 
                         const SizedBox(height: 10),
@@ -352,7 +352,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           obscureText: !_isPasswordVisible,
                           onChanged: validarPassword,
                           style: const TextStyle(color: Colors.white),
-                          decoration: _decoration("Contrasena", Icons.lock)
+                          decoration: _decoration("Contraseña", Icons.lock)
                               .copyWith(
                                 suffixIcon: IconButton(
                                   icon: Icon(
@@ -381,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: const TextStyle(color: Colors.white),
                           decoration:
                               _decoration(
-                                "Confirmar Contrasena",
+                                "Confirmar contraseña",
                                 Icons.lock,
                               ).copyWith(
                                 suffixIcon: IconButton(
@@ -437,7 +437,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: const Text(
-                            "Ya tienes cuenta? Inicia sesion",
+                            "¿Ya tienes cuenta? Inicia sesión",
                             style: TextStyle(color: Colors.white70),
                           ),
                         ),
@@ -453,5 +453,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-
-

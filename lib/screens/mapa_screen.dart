@@ -60,10 +60,7 @@ class _MapaScreenState extends State<MapaScreen> {
   }
 
   Future<void> _cargarPantalla() async {
-    await Future.wait([
-      _obtenerUbicacion(),
-      _cargarPuntosCompra(),
-    ]);
+    await Future.wait([_obtenerUbicacion(), _cargarPuntosCompra()]);
   }
 
   Future<void> _obtenerUbicacion() async {
@@ -79,7 +76,7 @@ class _MapaScreenState extends State<MapaScreen> {
       if (!servicioActivo) {
         setState(() {
           _cargandoUbicacion = false;
-          _mensajeUbicacion = 'Activa el GPS para ver tu ubicacion actual.';
+          _mensajeUbicacion = 'Activa el GPS para ver tu ubicación actual.';
         });
         return;
       }
@@ -92,7 +89,7 @@ class _MapaScreenState extends State<MapaScreen> {
       if (permiso == LocationPermission.denied) {
         setState(() {
           _cargandoUbicacion = false;
-          _mensajeUbicacion = 'Permiso de ubicacion denegado.';
+          _mensajeUbicacion = 'Permiso de ubicación denegado.';
         });
         return;
       }
@@ -101,7 +98,7 @@ class _MapaScreenState extends State<MapaScreen> {
         setState(() {
           _cargandoUbicacion = false;
           _mensajeUbicacion =
-              'Permiso bloqueado. Habilitalo desde ajustes del telefono.';
+              'Permiso bloqueado. Habilítalo desde ajustes del teléfono.';
         });
         return;
       }
@@ -118,7 +115,8 @@ class _MapaScreenState extends State<MapaScreen> {
       if (!mounted) return;
       setState(() {
         _cargandoUbicacion = false;
-        _mensajeUbicacion = 'No fue posible obtener tu ubicacion en este momento.';
+        _mensajeUbicacion =
+            'No fue posible obtener tu ubicación en este momento.';
       });
     }
   }
@@ -133,11 +131,13 @@ class _MapaScreenState extends State<MapaScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.authBaseUrl}/api/puntos-compra?ciudad=Villavicencio'),
+        Uri.parse(
+          '${ApiConfig.authBaseUrl}/api/puntos-compra?ciudad=Villavicencio',
+        ),
       );
 
       if (response.statusCode != 200) {
-        throw Exception('El servidor respondio con ${response.statusCode}');
+        throw Exception('El servidor respondió con ${response.statusCode}');
       }
 
       final lista = jsonDecode(response.body) as List<dynamic>;
@@ -184,7 +184,8 @@ class _MapaScreenState extends State<MapaScreen> {
 
     final seleccionActual = _puntoSeleccionado;
     final existeSeleccion =
-        seleccionActual != null && visibles.any((item) => item.id == seleccionActual.id);
+        seleccionActual != null &&
+        visibles.any((item) => item.id == seleccionActual.id);
 
     if (existeSeleccion) return;
 
@@ -216,8 +217,9 @@ class _MapaScreenState extends State<MapaScreen> {
     final puntosVisibles = _puntosFiltrados;
     if (puntosVisibles.length <= 1) return;
     final indiceActual = _indicePuntoSeleccionado;
-    final indiceAnterior =
-        indiceActual <= 0 ? puntosVisibles.length - 1 : indiceActual - 1;
+    final indiceAnterior = indiceActual <= 0
+        ? puntosVisibles.length - 1
+        : indiceActual - 1;
     _seleccionarPuntoPorIndice(indiceAnterior);
   }
 
@@ -227,8 +229,8 @@ class _MapaScreenState extends State<MapaScreen> {
     final indiceActual = _indicePuntoSeleccionado;
     final indiceSiguiente =
         indiceActual == -1 || indiceActual >= puntosVisibles.length - 1
-            ? 0
-            : indiceActual + 1;
+        ? 0
+        : indiceActual + 1;
     _seleccionarPuntoPorIndice(indiceSiguiente);
   }
 
@@ -241,7 +243,7 @@ class _MapaScreenState extends State<MapaScreen> {
     if (ubicacion == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Todavia no tenemos tu ubicacion disponible.'),
+          content: Text('Todavía no tenemos tu ubicación disponible.'),
         ),
       );
       return;
@@ -383,7 +385,8 @@ class _MapaScreenState extends State<MapaScreen> {
                 _buildBuscador(),
                 const SizedBox(height: 12),
                 _buildEstadoUbicacion(),
-                if (_buildEstadoUbicacion() is! SizedBox) const SizedBox(height: 12),
+                if (_buildEstadoUbicacion() is! SizedBox)
+                  const SizedBox(height: 12),
                 _buildEstadoPuntos(),
               ],
             ),
@@ -443,7 +446,9 @@ class _MapaScreenState extends State<MapaScreen> {
               duration: const Duration(milliseconds: 180),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _colorPorMaterial(punto).withOpacity(seleccionado ? 0.96 : 0.8),
+                color: _colorPorMaterial(
+                  punto,
+                ).withOpacity(seleccionado ? 0.96 : 0.8),
                 border: Border.all(
                   color: seleccionado ? Colors.white : Colors.white70,
                   width: seleccionado ? 2.2 : 1,
@@ -481,11 +486,7 @@ class _MapaScreenState extends State<MapaScreen> {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.my_location,
-              size: 18,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.my_location, size: 18, color: Colors.white),
           ),
         ),
     ];
@@ -522,7 +523,10 @@ class _MapaScreenState extends State<MapaScreen> {
                   icon: const Icon(Icons.close_rounded, color: Colors.white70),
                 ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -545,7 +549,7 @@ class _MapaScreenState extends State<MapaScreen> {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Obteniendo ubicacion...',
+                'Obteniendo ubicación...',
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -656,12 +660,10 @@ class _MapaScreenState extends State<MapaScreen> {
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),
                   children: const [
-                    Center(
-                      child: _SheetHandle(),
-                    ),
+                    Center(child: _SheetHandle()),
                     SizedBox(height: 18),
                     Text(
-                      'Selecciona un punto en el mapa o usa el buscador para ver materiales, distancia y como llegar.',
+                      'Selecciona un punto en el mapa o usa el buscador para ver materiales, distancia y cómo llegar.',
                       style: TextStyle(color: Colors.white70, height: 1.4),
                     ),
                   ],
@@ -678,7 +680,10 @@ class _MapaScreenState extends State<MapaScreen> {
                     const SizedBox(height: 14),
                     _buildAccionesPanel(punto),
                     const SizedBox(height: 16),
-                    _buildDetalle(icono: Icons.location_on_outlined, texto: punto.barrio),
+                    _buildDetalle(
+                      icono: Icons.location_on_outlined,
+                      texto: punto.barrio,
+                    ),
                     if (punto.referencia.isNotEmpty) ...[
                       const SizedBox(height: 10),
                       _buildDetalle(
@@ -726,10 +731,14 @@ class _MapaScreenState extends State<MapaScreen> {
                                 vertical: 7,
                               ),
                               decoration: BoxDecoration(
-                                color: _colorPorMaterial(punto).withOpacity(0.16),
+                                color: _colorPorMaterial(
+                                  punto,
+                                ).withOpacity(0.16),
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                  color: _colorPorMaterial(punto).withOpacity(0.35),
+                                  color: _colorPorMaterial(
+                                    punto,
+                                  ).withOpacity(0.35),
                                 ),
                               ),
                               child: Text(
@@ -784,10 +793,7 @@ class _MapaScreenState extends State<MapaScreen> {
               const SizedBox(height: 4),
               Text(
                 punto.direccion,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ],
           ),
@@ -806,7 +812,9 @@ class _MapaScreenState extends State<MapaScreen> {
       children: [
         if (abierto != null)
           _buildChipEstado(
-            icono: abierto ? Icons.check_circle_outline : Icons.access_time_rounded,
+            icono: abierto
+                ? Icons.check_circle_outline
+                : Icons.access_time_rounded,
             texto: abierto ? 'Abierto ahora' : 'Cerrado',
             color: abierto ? const Color(0xFF43A047) : const Color(0xFFE65100),
           ),
@@ -832,7 +840,7 @@ class _MapaScreenState extends State<MapaScreen> {
           child: FilledButton.icon(
             onPressed: () => _abrirComoLlegar(punto),
             icon: const Icon(Icons.route_rounded),
-            label: const Text('Como llegar'),
+            label: const Text('Cómo llegar'),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,

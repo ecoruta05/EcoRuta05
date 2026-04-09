@@ -35,7 +35,7 @@ class TutorialReciclajeScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  'Sigue esta guia practica para manejar tu basura de forma responsable desde casa.',
+                  'Sigue esta guía práctica para manejar tu basura de forma responsable desde casa.',
                   style: TextStyle(color: Colors.white70, height: 1.45),
                 ),
                 SizedBox(height: 20),
@@ -43,7 +43,7 @@ class TutorialReciclajeScreen extends StatelessWidget {
                   numero: 1,
                   titulo: 'Separa los residuos',
                   descripcion:
-                      'Clasifica en plastico, papel/carton, vidrio, metal y organicos. Si puedes, usa contenedores de colores.',
+                      'Clasifica en plástico, papel/cartón, vidrio, metal y orgánicos. Si puedes, usa contenedores de colores.',
                 ),
                 SizedBox(height: 12),
                 _PasoCard(
@@ -57,14 +57,14 @@ class TutorialReciclajeScreen extends StatelessWidget {
                   numero: 3,
                   titulo: 'Reduce volumen',
                   descripcion:
-                      'Aplasta botellas plasticas y dobla carton para ahorrar espacio y facilitar el transporte.',
+                      'Aplasta botellas plásticas y dobla cartón para ahorrar espacio y facilitar el transporte.',
                 ),
                 SizedBox(height: 12),
                 _PasoCard(
                   numero: 4,
                   titulo: 'Evita mezclar residuos sucios',
                   descripcion:
-                      'Una pizza grasosa o un carton mojado pueden volver no reciclable todo el lote.',
+                      'Una pizza grasosa o un cartón mojado pueden volver no reciclable todo el lote.',
                 ),
                 SizedBox(height: 12),
                 _PasoCard(
@@ -76,9 +76,9 @@ class TutorialReciclajeScreen extends StatelessWidget {
                 SizedBox(height: 12),
                 _PasoCard(
                   numero: 6,
-                  titulo: 'Hazlo un habito semanal',
+                  titulo: 'Hazlo un hábito semanal',
                   descripcion:
-                      'Define un dia fijo para revisar, separar y llevar residuos. La constancia es la clave.',
+                      'Define un día fijo para revisar, separar y llevar residuos. La constancia es la clave.',
                 ),
                 SizedBox(height: 22),
                 _TipsCard(),
@@ -178,7 +178,7 @@ class _TipsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Consejos rapidos',
+            'Consejos rápidos',
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -187,7 +187,7 @@ class _TipsCard extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            '• Si tienes dudas sobre un residuo, no lo mezcles hasta confirmarlo.\n• Reutiliza frascos y bolsas cuando sea posible.\n• Involucra a toda la familia para mantener el habito.',
+            '• Si tienes dudas sobre un residuo, no lo mezcles hasta confirmarlo.\n• Reutiliza frascos y bolsas cuando sea posible.\n• Involucra a toda la familia para mantener el hábito.',
             style: TextStyle(color: Colors.white, height: 1.35),
           ),
         ],

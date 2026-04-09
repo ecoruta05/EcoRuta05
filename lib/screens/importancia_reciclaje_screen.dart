@@ -26,7 +26,7 @@ class ImportanciaReciclajeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Text(
-                  '¿Por que reciclar?',
+                  '¿Por qué reciclar?',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -41,37 +41,37 @@ class ImportanciaReciclajeScreen extends StatelessWidget {
                 SizedBox(height: 22),
                 _BeneficioCard(
                   icon: Icons.public_rounded,
-                  title: 'Menos contaminacion',
+                  title: 'Menos contaminación',
                   description:
-                      'Disminuye la basura en calles, rios y oceanos, y reduce la contaminacion del suelo y del aire.',
+                      'Disminuye la basura en calles, ríos y océanos, y reduce la contaminación del suelo y del aire.',
                 ),
                 SizedBox(height: 14),
                 _BeneficioCard(
                   icon: Icons.forest_rounded,
-                  title: 'Proteccion de ecosistemas',
+                  title: 'Protección de ecosistemas',
                   description:
-                      'Se reduce la extraccion de materias primas, la tala de bosques y el dano a habitats naturales.',
+                      'Se reduce la extracción de materias primas, la tala de bosques y el daño a hábitats naturales.',
                 ),
                 SizedBox(height: 14),
                 _BeneficioCard(
                   icon: Icons.bolt_rounded,
-                  title: 'Ahorro de energia y agua',
+                  title: 'Ahorro de energía y agua',
                   description:
-                      'Fabricar productos con material reciclado suele requerir menos energia y menos agua.',
+                      'Fabricar productos con material reciclado suele requerir menos energía y menos agua.',
                 ),
                 SizedBox(height: 14),
                 _BeneficioCard(
                   icon: Icons.co2_rounded,
                   title: 'Menos emisiones de CO2',
                   description:
-                      'El reciclaje ayuda a disminuir gases de efecto invernadero y aporta frente al cambio climatico.',
+                      'El reciclaje ayuda a disminuir gases de efecto invernadero y aporta frente al cambio climático.',
                 ),
                 SizedBox(height: 14),
                 _BeneficioCard(
                   icon: Icons.groups_rounded,
                   title: 'Impacto social positivo',
                   description:
-                      'Promueve cultura ambiental, genera empleos verdes y fortalece comunidades mas limpias.',
+                      'Promueve cultura ambiental, genera empleos verdes y fortalece comunidades más limpias.',
                 ),
                 SizedBox(height: 24),
                 _ConsejoFinalCard(),
@@ -160,7 +160,7 @@ class _ConsejoFinalCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: const Text(
-        'Pequenas acciones diarias generan grandes cambios. Separar, limpiar y reciclar correctamente tu basura marca una diferencia real para el planeta.',
+        'Pequeñas acciones diarias generan grandes cambios. Separar, limpiar y reciclar correctamente tu basura marca una diferencia real para el planeta.',
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w600,
