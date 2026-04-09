@@ -13,6 +13,7 @@ import 'importancia_reciclaje_screen.dart';
 import 'login_screen.dart';
 import 'mapa_screen.dart';
 import 'qr_venta_screen.dart';
+import 'residuos_especiales_screen.dart';
 import 'tutorial_reciclaje_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -1011,6 +1012,19 @@ class _HomeScreenState extends State<HomeScreen>
                 context,
                 MaterialPageRoute(
                   builder: (_) => const TutorialReciclajeScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          _buildPestanaModulo(
+            icon: Icons.health_and_safety_rounded,
+            titulo: 'Especiales',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ResiduosEspecialesScreen(),
                 ),
               );
             },

@@ -105,5 +105,6 @@ node_modules/
 # Otros
 venv/
 .env.local
+runs/
 
 backend/qr-puntos-compra/
