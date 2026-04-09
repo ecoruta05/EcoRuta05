@@ -81,6 +81,8 @@ class TutorialReciclajeScreen extends StatelessWidget {
                       'Define un día fijo para revisar, separar y llevar residuos. La constancia es la clave.',
                 ),
                 SizedBox(height: 22),
+                _CanecasCard(),
+                SizedBox(height: 22),
                 _TipsCard(),
               ],
             ),
@@ -192,6 +194,113 @@ class _TipsCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CanecasCard extends StatelessWidget {
+  const _CanecasCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Colores de las canecas',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          _CanecaItem(
+            color: Color(0xFFFFFFFF),
+            nombre: 'Blanca',
+            descripcion:
+                'Residuos aprovechables como papel, carton, plastico, vidrio y metales limpios y secos.',
+          ),
+          SizedBox(height: 10),
+          _CanecaItem(
+            color: Color(0xFF1B5E20),
+            nombre: 'Verde',
+            descripcion:
+                'Residuos organicos aprovechables como restos de comida, cascaras y residuos de poda.',
+          ),
+          SizedBox(height: 10),
+          _CanecaItem(
+            color: Color(0xFF212121),
+            nombre: 'Negra',
+            descripcion:
+                'Residuos no aprovechables como papel higienico, servilletas usadas, empaques contaminados y barrido.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CanecaItem extends StatelessWidget {
+  final Color color;
+  final String nombre;
+  final String descripcion;
+
+  const _CanecaItem({
+    required this.color,
+    required this.nombre,
+    required this.descripcion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          margin: const EdgeInsets.only(top: 2),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white24),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '$nombre: ',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                TextSpan(
+                  text: descripcion,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
