@@ -665,6 +665,104 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  void _seleccionarMaterialManual(String material) {
+    final materialNormalizado = material.toLowerCase().trim();
+
+    final Map<String, dynamic> resultado;
+    switch (materialNormalizado) {
+      case 'plastico':
+        resultado = {
+          'objeto_detectado': 'plastico',
+          'categoria': 'reciclable',
+          'accion': 'reciclar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: depositalo limpio en el reciclaje de plastico.',
+        };
+        break;
+      case 'vidrio':
+        resultado = {
+          'objeto_detectado': 'vidrio',
+          'categoria': 'reciclable',
+          'accion': 'reciclar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: llevalo limpio al contenedor de vidrio.',
+        };
+        break;
+      case 'papel':
+        resultado = {
+          'objeto_detectado': 'papel',
+          'categoria': 'reciclable',
+          'accion': 'reciclar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: si esta seco y limpio, reciclalo con papel.',
+        };
+        break;
+      case 'carton':
+        resultado = {
+          'objeto_detectado': 'carton',
+          'categoria': 'reciclable',
+          'accion': 'reciclar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: doblalo o aplastalo antes de reciclarlo.',
+        };
+        break;
+      case 'metal':
+      case 'latas':
+        resultado = {
+          'objeto_detectado': materialNormalizado,
+          'categoria': 'reciclable',
+          'accion': 'reciclar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: separalo limpio para reciclaje de metales.',
+        };
+        break;
+      case 'electronico':
+        resultado = {
+          'objeto_detectado': 'electronico',
+          'categoria': 'peligroso',
+          'accion': 'disposicion_especial',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: llevalo a un punto autorizado de RAEE.',
+        };
+        break;
+      case 'organico':
+        resultado = {
+          'objeto_detectado': 'organico',
+          'categoria': 'organico',
+          'accion': 'compostar',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual: gestionarlo como residuo organico o compostaje.',
+        };
+        break;
+      default:
+        resultado = {
+          'objeto_detectado': materialNormalizado,
+          'categoria': 'indeterminado',
+          'accion': 'revision_manual',
+          'confianza': 1.0,
+          'instrucciones':
+              'Seleccion manual registrada para comparar con el resultado de la IA.',
+        };
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _ultimoResultado = {
+        ...resultado,
+        'modelo': 'seleccion_manual',
+        'label_modelo': materialNormalizado,
+        'otras_posibilidades': const [],
+      };
+    });
+  }
+
   void _mostrarFotoCapturada() {
     if (_fotoCapturada == null) return;
 
@@ -757,6 +855,8 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildHeader(),
                 const SizedBox(height: 28),
                 _buildBotonEscanearResiduo(),
+                const SizedBox(height: 16),
+                _buildSelectorManualMaterial(),
                 const SizedBox(height: 28),
                 _buildSeccionEstadisticasClasica(),
                 const SizedBox(height: 14),
@@ -989,6 +1089,64 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectorManualMaterial() {
+    final materiales = [
+      'Plastico',
+      'Vidrio',
+      'Papel',
+      'Carton',
+      'Metal',
+      'Latas',
+      'Electronico',
+      'Organico',
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Seleccion manual',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Escoge el material manualmente para comparar si el problema viene de la IA o de la foto.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: materiales.map((material) {
+              return ActionChip(
+                label: Text(material),
+                onPressed: () => _seleccionarMaterialManual(material),
+                backgroundColor: Colors.white.withOpacity(0.08),
+                side: const BorderSide(color: Colors.white12),
+                labelStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -1527,6 +1685,23 @@ class _HomeScreenState extends State<HomeScreen>
     final objeto = resultado['objeto_detectado']?.toString() ?? 'Objeto';
     final categoria = resultado['categoria']?.toString() ?? 'sin categoría';
     final accion = resultado['accion']?.toString() ?? 'sin acción';
+    final instrucciones = resultado['instrucciones']?.toString() ?? '';
+    final modelo = resultado['modelo']?.toString() ?? '';
+    final labelModelo = resultado['label_modelo']?.toString() ?? '';
+    final confianza = (resultado['confianza'] as num?)?.toDouble();
+    final otrasPosibilidades =
+        (resultado['otras_posibilidades'] as List? ?? const [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+
+    final detalleAlternativas = otrasPosibilidades
+        .take(2)
+        .map((item) {
+          final label = item['label']?.toString() ?? 'desconocido';
+          final prob = ((item['confianza'] as num?)?.toDouble() ?? 0) * 100;
+          return '$label (${prob.toStringAsFixed(1)}%)';
+        })
+        .join(', ');
 
     return Container(
       width: double.infinity,
@@ -1536,9 +1711,67 @@ class _HomeScreenState extends State<HomeScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
-      child: Text(
-        'Último análisis\n$objeto\nCategoría: $categoria\nAcción: $accion',
-        style: const TextStyle(color: Colors.white70, height: 1.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Último análisis',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            objeto,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Categoría: $categoria\nAcción: $accion',
+            style: const TextStyle(color: Colors.white70, height: 1.5),
+          ),
+          if (confianza != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Confianza: ${(confianza * 100).toStringAsFixed(1)}%',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ],
+          if (instrucciones.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Detalle: $instrucciones',
+              style: const TextStyle(color: Colors.white70, height: 1.4),
+            ),
+          ],
+          if (labelModelo.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Etiqueta modelo: $labelModelo',
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ],
+          if (detalleAlternativas.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Alternativas: $detalleAlternativas',
+              style: const TextStyle(color: Colors.white54, height: 1.4),
+            ),
+          ],
+          if (modelo.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Modelo: $modelo',
+              style: const TextStyle(color: Colors.white38),
+            ),
+          ],
+        ],
       ),
     );
   }

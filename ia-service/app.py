@@ -109,7 +109,17 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    vision_status = "ready"
+    if clasificador_vision is None:
+        vision_status = "not_initialized"
+    elif not getattr(clasificador_vision, "_modelo_disponible", False):
+        vision_status = "model_unavailable"
+
+    return {
+        "status": "healthy",
+        "vision_status": vision_status,
+        "timestamp": datetime.now().isoformat(),
+    }
 
 @app.post("/clasificar/texto")
 async def clasificar_texto(
@@ -168,7 +178,11 @@ async def clasificar_imagen(file: UploadFile = File(...)):
         raise HTTPException(503, "Servicio de IA no inicializado aún")
     
     imagen_bytes = await file.read()
-    resultado = clasificador_vision.clasificar_desde_imagen(imagen_bytes)
+    try:
+        resultado = clasificador_vision.clasificar_desde_imagen(imagen_bytes)
+    except Exception as e:
+        logger.exception(f"Error clasificando imagen {file.filename}: {e}")
+        raise HTTPException(500, "No fue posible procesar la imagen")
     
     # Guardar en base de datos
     with get_db() as db:

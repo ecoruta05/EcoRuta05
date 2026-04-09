@@ -5,7 +5,7 @@ from typing import Dict, List
 from PIL import Image
 from loguru import logger
 import torch
-from torchvision import models
+from torchvision import models, transforms
 
 
 class ClasificadorVision:
@@ -27,6 +27,19 @@ class ClasificadorVision:
         with labels_path.open(encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
 
+    def _crear_preprocess(self):
+        return transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
+            ]
+        )
+
     def _crear_modelo_base(self):
         weights = models.MobileNet_V3_Small_Weights.DEFAULT
         model = models.mobilenet_v3_small(weights=weights)
@@ -34,11 +47,11 @@ class ClasificadorVision:
         return model, preprocess
 
     def _crear_modelo_personalizado(self, num_classes: int):
-        weights = models.MobileNet_V3_Small_Weights.DEFAULT
-        model = models.mobilenet_v3_small(weights=weights)
+        # Evita depender de descargas externas al iniciar en Railway.
+        model = models.mobilenet_v3_small(weights=None)
         in_features = model.classifier[3].in_features
         model.classifier[3] = torch.nn.Linear(in_features, num_classes)
-        preprocess = weights.transforms()
+        preprocess = self._crear_preprocess()
         return model, preprocess
 
     def _inicializar_modelo(self) -> None:
@@ -83,6 +96,7 @@ class ClasificadorVision:
                 "confianza": 0.0,
                 "instrucciones": "No fue posible cargar el modelo de vision.",
                 "otras_posibilidades": [],
+                "modelo": "no_disponible",
             }
 
         image = Image.open(BytesIO(imagen_bytes)).convert("RGB")
@@ -102,13 +116,13 @@ class ClasificadorVision:
                 }
                 for prob, idx in zip(top_probs.tolist(), top_indices.tolist())
             ]
+            decision = self._resolver_prediccion_personalizada(predicciones)
             principal = predicciones[0]
-            decision = self._mapear_clase_personalizada(principal["label"], principal["confianza"])
             return {
                 "objeto_detectado": decision["objeto_detectado"],
                 "categoria": decision["categoria"],
                 "accion": decision["accion"],
-                "confianza": round(principal["confianza"], 4),
+                "confianza": round(decision.get("confianza", principal["confianza"]), 4),
                 "instrucciones": decision["instrucciones"],
                 "otras_posibilidades": predicciones[1:],
                 "label_modelo": principal["label"],
@@ -169,6 +183,67 @@ class ClasificadorVision:
             "instrucciones": instrucciones,
             "confianza": confianza,
         }
+
+    def _resolver_prediccion_personalizada(self, predicciones: List[Dict]) -> Dict:
+        principal = predicciones[0]
+        principal_label = principal["label"].lower().strip()
+        principal_conf = float(principal["confianza"])
+
+        decision_principal = self._mapear_clase_personalizada(
+            principal["label"],
+            principal_conf,
+        )
+
+        reciclables = {"plastico", "vidrio", "metal", "papel", "carton"}
+        top_reciclable = next(
+            (
+                pred
+                for pred in predicciones
+                if pred["label"].lower().strip() in reciclables
+            ),
+            None,
+        )
+
+        if (
+            principal_label == "electronico"
+            and top_reciclable is not None
+            and (
+                principal_conf < 0.80
+                or principal_conf - float(top_reciclable["confianza"]) < 0.18
+            )
+        ):
+            alternativa = self._mapear_clase_personalizada(
+                top_reciclable["label"],
+                float(top_reciclable["confianza"]),
+            )
+            alternativa["instrucciones"] = (
+                "La foto es ambigua entre electronico y material reciclable. "
+                f"Se prioriza '{top_reciclable['label']}' por cercania en las predicciones. "
+                "Si puedes, toma otra foto con fondo mas limpio."
+            )
+            return alternativa
+
+        if principal_label in {"animal", "no_residuo"} and top_reciclable is not None:
+            if principal_conf < 0.70 or principal_conf - float(top_reciclable["confianza"]) < 0.15:
+                return {
+                    "objeto_detectado": "revision_manual",
+                    "categoria": "indeterminado",
+                    "accion": "revision_manual",
+                    "instrucciones": (
+                        "La imagen no es consistente. El modelo duda entre un residuo "
+                        f"y '{principal['label']}'. Toma otra foto enfocando solo el objeto."
+                    ),
+                    "confianza": principal_conf,
+                }
+
+        if principal_label in reciclables and principal_conf < 0.45:
+            decision_principal["instrucciones"] = (
+                "La clasificacion apunta a material reciclable, pero con baja confianza. "
+                "Repite la foto con mejor luz y menos objetos al fondo."
+            )
+            return decision_principal
+
+        return decision_principal
 
     def _mapear_desde_predicciones(self, predicciones: List[Dict]) -> Dict:
         for prediccion in predicciones:
