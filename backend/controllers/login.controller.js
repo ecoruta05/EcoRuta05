@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+﻿import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import ResumenReciclaje from "../models/resumenReciclaje.js";
 import Usuario from "../models/user.js";
@@ -16,7 +16,7 @@ export const login = async (req, res) => {
     const valido = await bcrypt.compare(password, user.password);
 
     if (!valido) {
-      return res.status(401).json({ mensaje: "Contraseña incorrecta" });
+      return res.status(401).json({ mensaje: "Contrasena incorrecta" });
     }
 
     const token = jwt.sign(
@@ -49,7 +49,6 @@ export const login = async (req, res) => {
     res.status(500).json({ mensaje: "Error en login" });
   }
 };
-<<<<<<< HEAD
 
 export const cambiarPassword = async (req, res) => {
   try {
@@ -60,7 +59,7 @@ export const cambiarPassword = async (req, res) => {
 
     if (!passwordActual || !passwordNueva) {
       return res.status(400).json({
-        mensaje: "Debes ingresar la contraseña actual y la nueva"
+        mensaje: "Debes ingresar la contrasena actual y la nueva"
       });
     }
 
@@ -70,7 +69,7 @@ export const cambiarPassword = async (req, res) => {
       !/[a-zA-Z]/.test(passwordNueva)
     ) {
       return res.status(400).json({
-        mensaje: "La nueva contraseña debe tener minimo 6 caracteres, una letra y un numero"
+        mensaje: "La nueva contrasena debe tener minimo 6 caracteres, una letra y un numero"
       });
     }
 
@@ -84,7 +83,7 @@ export const cambiarPassword = async (req, res) => {
 
     if (!passwordValida) {
       return res.status(401).json({
-        mensaje: "La contraseña actual es incorrecta"
+        mensaje: "La contrasena actual es incorrecta"
       });
     }
 
@@ -92,7 +91,7 @@ export const cambiarPassword = async (req, res) => {
 
     if (passwordEsLaMisma) {
       return res.status(400).json({
-        mensaje: "La nueva contraseña no puede ser igual a la actual"
+        mensaje: "La nueva contrasena no puede ser igual a la actual"
       });
     }
 
@@ -100,14 +99,13 @@ export const cambiarPassword = async (req, res) => {
     await user.save();
 
     return res.json({
-      mensaje: "Contraseña actualizada correctamente"
+      mensaje: "Contrasena actualizada correctamente"
     });
   } catch (error) {
-    console.error("Error al cambiar contraseña:", error);
+    console.error("Error al cambiar contrasena:", error);
     return res.status(500).json({
-      mensaje: "Error al cambiar contraseña"
+      mensaje: "Error al cambiar contrasena"
     });
   }
 };
-=======
->>>>>>> 3df6d4aa30f94b91c74ca0a9a7a55d3165da4cc6
+
