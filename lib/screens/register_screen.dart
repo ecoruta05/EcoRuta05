@@ -15,6 +15,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String ultimoCorreoConsultado = "";
   bool correoDisponible = false;
   bool verificandoCorreo = false;
+  bool verificacionCorreoExitosa = false;
   bool tieneMinimo = false;
   bool tieneNumero = false;
   bool tieneLetra = false;
@@ -63,6 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         correoValido = false;
         correoDisponible = false;
         verificandoCorreo = false;
+        verificacionCorreoExitosa = false;
       });
       return;
     }
@@ -70,6 +72,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       correoValido = true;
       verificandoCorreo = true;
+      verificacionCorreoExitosa = false;
     });
 
     try {
@@ -86,9 +89,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         correoDisponible = !data["existe"];
         verificandoCorreo = false;
+        verificacionCorreoExitosa = true;
       });
     } catch (e) {
-      setState(() => verificandoCorreo = false);
+      setState(() {
+        verificandoCorreo = false;
+        correoDisponible = false;
+        verificacionCorreoExitosa = false;
+      });
     }
   }
 
@@ -147,13 +155,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ? "Debe ser @gmail.com"
               : verificandoCorreo
               ? "Verificando..."
+              : !verificacionCorreoExitosa
+              ? "No se pudo verificar"
               : correoDisponible
               ? "Disponible"
               : "Ya registrado",
           style: TextStyle(
-            color: (!correoValido || !correoDisponible)
+            color: !correoValido
                 ? Colors.red
-                : Colors.green,
+                : verificandoCorreo
+                ? Colors.white70
+                : !verificacionCorreoExitosa
+                ? Colors.orange
+                : correoDisponible
+                ? Colors.green
+                : Colors.red,
           ),
         ),
       ],
@@ -164,8 +180,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildRule("Mínimo 6 caracteres", tieneMinimo),
-        _buildRule("Contiene número", tieneNumero),
+        _buildRule("Minimo 6 caracteres", tieneMinimo),
+        _buildRule("Contiene numero", tieneNumero),
         _buildRule("Contiene letra", tieneLetra),
       ],
     );
@@ -173,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildPasswordMatch() {
     return _buildRule(
-      passwordsIguales ? "Las contraseñas coinciden" : "No coinciden",
+      passwordsIguales ? "Las contrasenas coinciden" : "No coinciden",
       passwordsIguales,
     );
   }
@@ -181,6 +197,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       if (!correoValido) return;
+      if (!verificacionCorreoExitosa) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No se pudo verificar el correo")),
+        );
+        return;
+      }
       if (!correoDisponible) return;
       if (!tieneMinimo || !tieneNumero || !tieneLetra) return;
       if (!passwordsIguales) return;
@@ -320,7 +342,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           style: const TextStyle(color: Colors.white),
-                          decoration: _decoration("Teléfono", Icons.phone),
+                          decoration: _decoration("Telefono", Icons.phone),
                         ),
 
                         const SizedBox(height: 10),
@@ -330,7 +352,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           obscureText: !_isPasswordVisible,
                           onChanged: validarPassword,
                           style: const TextStyle(color: Colors.white),
-                          decoration: _decoration("Contraseña", Icons.lock)
+                          decoration: _decoration("Contrasena", Icons.lock)
                               .copyWith(
                                 suffixIcon: IconButton(
                                   icon: Icon(
@@ -359,7 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: const TextStyle(color: Colors.white),
                           decoration:
                               _decoration(
-                                "Confirmar contraseña",
+                                "Confirmar Contrasena",
                                 Icons.lock,
                               ).copyWith(
                                 suffixIcon: IconButton(
@@ -415,7 +437,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: const Text(
-                            "¿Ya tienes cuenta? Inicia sesión",
+                            "Ya tienes cuenta? Inicia sesion",
                             style: TextStyle(color: Colors.white70),
                           ),
                         ),
@@ -431,3 +453,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
